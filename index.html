@@ -19,6 +19,19 @@
             cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"><circle cx="10" cy="10" r="8" fill="%23ff00ff"/></svg>'), auto;
         }
         
+        /* Noise overlay - covers entire site */
+        .noise-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: url('assets/noise.png') repeat;
+            pointer-events: none;
+            z-index: 99999;
+            opacity: 0.15;
+        }
+        
         #splash {
             position: fixed;
             top: 0;
@@ -505,9 +518,29 @@
             50% { transform: rotate(2deg); }
         }
         
+        /* Popup Gremlin Character - JS controlled positioning */
+        .popup-gremlin {
+            position: fixed;
+            z-index: 9999;
+            pointer-events: none;
+            opacity: 0;
+            transition: none;
+        }
+        
+        .popup-gremlin.visible {
+            opacity: 1;
+        }
+        
+        .popup-gremlin img {
+            display: block;
+        }
+        
     </style>
 </head>
 <body>
+    <!-- Noise overlay - covers entire site -->
+    <div class="noise-overlay"></div>
+    
     <div id="splash">
         <div id="flashlight"></div>
         
@@ -540,12 +573,7 @@
     </div>
     
     <!-- Audio player (hidden) - will auto-play when entering site -->
-    <audio id="site-audio" loop>
-        <source src="assets/audio/crystalsettings.mp3" type="audio/mpeg">
-        <source src="assets/audio/DJDave-Airglow(Visualizer).mp3" type="audio/mpeg">
-        <source src="assets/audio/NoMana,SUPERDARK-HoldMe.mp3" type="audio/mpeg">
-        <source src="assets/audio/0neo-px.mp3" type="audio/mpeg">
-    </audio>
+    <audio id="site-audio"></audio>
     
     <div id="main-site">
         <header>
@@ -647,6 +675,15 @@
         </div>
     </div>
     
+    <!-- Popup Gremlin -->
+    <div id="popup-gremlin" class="popup-gremlin">
+        <img src="assets/character/savant-dopey.png" alt="surprise!" id="gremlin-img">
+    </div>
+    
+    
+    <!-- Gremlin Sound Effects -->
+    <audio id="gremlin-sound" preload="auto"></audio>
+    
     <script>
         const effects = [
             { emoji: '🌈' }, { emoji: '⭐' }, { emoji: '✨' }, { emoji: '💫' },
@@ -719,12 +756,220 @@
             document.getElementById('splash').classList.add('hidden');
             document.getElementById('main-site').classList.add('active');
             
-            // Try to play audio (requires user interaction first)
-            const audio = document.getElementById('site-audio');
-            if (audio.querySelector('source')) {
-                audio.play().catch(e => console.log('Audio play blocked:', e));
-            }
+            // Start randomized music playlist
+            startMusicPlaylist();
+            
+            // Start the gremlin popup madness!
+            startGremlinPopups();
         });
+        
+        // ========================================
+        // POPUP GREMLIN SYSTEM
+        // ========================================
+        // ========================================
+        // SAVANT POPUP SYSTEM
+        // ========================================
+        const savantCharacters = [
+            'assets/character/savant-dopey.png',
+            'assets/character/savant-mask.png',
+            'assets/character/savant-pepe.png',
+            'assets/character/savant-smoke.png'
+        ];
+        const savantSounds = [
+            'assets/audio/fart2.mp3'
+        ];
+        const savantSizes = [120, 150, 180, 200];
+        const savantEdges = ['bottom', 'top', 'left', 'right'];
+        let savantInterval = null;
+        let savantAnimating = false;
+        
+        function showSavant() {
+            if (savantAnimating) return;
+            savantAnimating = true;
+            
+            const gremlin = document.getElementById('popup-gremlin');
+            const gremlinImg = document.getElementById('gremlin-img');
+            const gremlinSound = document.getElementById('gremlin-sound');
+            
+            // Pick random character, edge, and size
+            const character = savantCharacters[Math.floor(Math.random() * savantCharacters.length)];
+            const edge = savantEdges[Math.floor(Math.random() * savantEdges.length)];
+            const size = savantSizes[Math.floor(Math.random() * savantSizes.length)];
+            
+            // Set character image and size
+            gremlinImg.src = character;
+            gremlinImg.style.width = size + 'px';
+            gremlinImg.style.height = 'auto';
+            
+            // Reset all positioning
+            gremlin.style.top = '';
+            gremlin.style.bottom = '';
+            gremlin.style.left = '';
+            gremlin.style.right = '';
+            gremlin.style.transform = '';
+            gremlin.style.transformOrigin = '';
+            
+            // Show 97% of image (hide 3%)
+            const hidePercent = 3;
+            const stayTime = 1000 + Math.random() * 2000; // 1-3 seconds
+            
+            // BOTTOM of image ALWAYS locked to viewport edge
+            // Bottom stays at edge, only slides in/out
+            
+            if (edge === 'bottom') {
+                // 0° rotation, normal orientation - BOTTOM TOUCHES BOTTOM EDGE
+                const xPos = 10 + Math.random() * 80;
+                gremlin.style.bottom = '0'; // Bottom edge of image at bottom of viewport
+                gremlin.style.left = xPos + '%';
+                gremlin.style.transformOrigin = 'bottom center';
+                // Hidden: translateY moves it DOWN (off screen)
+                gremlin.style.transform = `translateY(100%)`;
+                
+                setTimeout(() => {
+                    gremlin.style.transition = 'transform 0.4s ease-out';
+                    // Show: translateY moves it UP to reveal 97% (only 3% hidden)
+                    gremlin.style.transform = `translateY(${hidePercent}%)`;
+                    gremlin.classList.add('visible');
+                }, 10);
+                
+                setTimeout(() => {
+                    gremlin.style.transition = 'transform 0.4s ease-in';
+                    gremlin.style.transform = `translateY(100%)`;
+                }, stayTime);
+                
+            } else if (edge === 'top') {
+                // 180° rotation, upside down - BOTTOM TOUCHES TOP EDGE
+                const xPos = 10 + Math.random() * 80;
+                gremlin.style.top = '0'; // Top of viewport
+                gremlin.style.left = xPos + '%';
+                gremlin.style.transformOrigin = 'bottom center';
+                // Rotate 180deg so bottom is at top, then translateY moves it UP (off screen)
+                gremlin.style.transform = `rotate(180deg) translateY(-100%)`;
+                
+                setTimeout(() => {
+                    gremlin.style.transition = 'transform 0.4s ease-out';
+                    // Show: translateY moves it DOWN to reveal 97%
+                    gremlin.style.transform = `rotate(180deg) translateY(-${hidePercent}%)`;
+                    gremlin.classList.add('visible');
+                }, 10);
+                
+                setTimeout(() => {
+                    gremlin.style.transition = 'transform 0.4s ease-in';
+                    gremlin.style.transform = `rotate(180deg) translateY(-100%)`;
+                }, stayTime);
+                
+            } else if (edge === 'left') {
+                // 90° CW rotation - BOTTOM TOUCHES LEFT EDGE
+                const yPos = 20 + Math.random() * 60;
+                gremlin.style.left = '0'; // Left edge of viewport
+                gremlin.style.bottom = yPos + '%'; // Position bottom at yPos
+                gremlin.style.transformOrigin = 'bottom left'; // Rotate around bottom-left corner
+                // Rotate 90deg CW, then translateY moves horizontally (after rotation, Y is horizontal)
+                // Hidden: translateY negative = left (off screen)
+                gremlin.style.transform = `rotate(90deg) translateY(-100%)`;
+                
+                setTimeout(() => {
+                    gremlin.style.transition = 'transform 0.4s ease-out';
+                    // Show: translateY less negative = slide right to reveal 97%
+                    gremlin.style.transform = `rotate(90deg) translateY(-${hidePercent}%)`;
+                    gremlin.classList.add('visible');
+                }, 10);
+                
+                setTimeout(() => {
+                    gremlin.style.transition = 'transform 0.4s ease-in';
+                    gremlin.style.transform = `rotate(90deg) translateY(-100%)`;
+                }, stayTime);
+                
+            } else if (edge === 'right') {
+                // 90° CCW rotation - BOTTOM TOUCHES RIGHT EDGE
+                const yPos = 20 + Math.random() * 60;
+                gremlin.style.right = '0'; // Right edge of viewport
+                gremlin.style.bottom = yPos + '%'; // Position bottom at yPos
+                gremlin.style.transformOrigin = 'bottom right'; // Rotate around bottom-right corner
+                // Rotate -90deg CCW, then translateY moves horizontally
+                // Hidden: translateY positive = right (off screen)
+                gremlin.style.transform = `rotate(-90deg) translateY(100%)`;
+                
+                setTimeout(() => {
+                    gremlin.style.transition = 'transform 0.4s ease-out';
+                    // Show: translateY less positive = slide left to reveal 97%
+                    gremlin.style.transform = `rotate(-90deg) translateY(${hidePercent}%)`;
+                    gremlin.classList.add('visible');
+                }, 10);
+                
+                setTimeout(() => {
+                    gremlin.style.transition = 'transform 0.4s ease-in';
+                    gremlin.style.transform = `rotate(-90deg) translateY(100%)`;
+                }, stayTime);
+            }
+            
+            // Play sound
+            const sound = savantSounds[Math.floor(Math.random() * savantSounds.length)];
+            gremlinSound.src = sound;
+            gremlinSound.volume = 0.5;
+            gremlinSound.play().catch(e => console.log('Sound blocked:', e));
+            
+            // Cleanup after animation completes
+            setTimeout(() => {
+                gremlin.classList.remove('visible');
+                gremlin.style.transition = '';
+                savantAnimating = false;
+            }, stayTime + 500); // Wait for slide-out animation
+        }
+        
+        function startGremlinPopups() {
+            // First popup quickly (0.5-1 second)
+            setTimeout(() => {
+                showSavant();
+                
+                // Then every 2-4 seconds
+                savantInterval = setInterval(() => {
+                    showSavant();
+                }, 2000 + Math.random() * 2000);
+            }, 500 + Math.random() * 500);
+        }
+        
+        // ========================================
+        // MUSIC PLAYLIST - Randomized
+        // ========================================
+        const musicTracks = [
+            'assets/audio/crystalsettings.mp3',
+            'assets/audio/DJDave-Airglow(Visualizer).mp3',
+            'assets/audio/NoMana,SUPERDARK-HoldMe.mp3',
+            'assets/audio/0neo-px.mp3'
+        ];
+        let shuffledPlaylist = [];
+        let currentTrackIndex = 0;
+        
+        function shuffleArray(array) {
+            const shuffled = [...array];
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+            return shuffled;
+        }
+        
+        function playNextTrack() {
+            const audio = document.getElementById('site-audio');
+            audio.src = shuffledPlaylist[currentTrackIndex];
+            audio.play().catch(e => console.log('Audio play blocked:', e));
+            currentTrackIndex = (currentTrackIndex + 1) % shuffledPlaylist.length;
+        }
+        
+        function startMusicPlaylist() {
+            const audio = document.getElementById('site-audio');
+            
+            // Shuffle the playlist
+            shuffledPlaylist = shuffleArray(musicTracks);
+            currentTrackIndex = 0;
+            
+            // When a track ends, play the next one
+            audio.addEventListener('ended', playNextTrack);
+            
+            // Start playing
+            playNextTrack();
+        }
         
         // Navigation with draggable buttons
         let draggedButton = null;
@@ -777,6 +1022,8 @@
         });
         
         // Mouse up - stop drag or navigate
+        let galleryPopupTimeout = null;
+        
         document.addEventListener('mouseup', (e) => {
             if (draggedButton) {
                 draggedButton.classList.remove('dragging');
@@ -788,6 +1035,17 @@
                     
                     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
                     document.getElementById(draggedButton.dataset.page).classList.add('active');
+                    
+                    // Gallery page - show alert after 7 seconds
+                    if (draggedButton.dataset.page === 'gallery') {
+                        clearTimeout(galleryPopupTimeout);
+                        galleryPopupTimeout = setTimeout(() => {
+                            alert('urrhm u need 2 refrassh dummie 🤪');
+                        }, 7000);
+                    } else {
+                        // Clear timeout if navigating away
+                        clearTimeout(galleryPopupTimeout);
+                    }
                 }
                 
                 draggedButton = null;
