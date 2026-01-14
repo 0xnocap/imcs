@@ -468,9 +468,11 @@
                 left: auto !important;
                 top: auto !important;
                 width: 100%;
-                font-size: 16px;
+                font-size: 20px;
                 padding: 12px 15px;
                 text-align: center;
+                color: #000 !important;
+                font-weight: 700 !important;
             }
             
             .marquee {
@@ -677,9 +679,9 @@
         
         <nav>
             <button class="nav-btn active" data-page="home" style="left: 50px; top: 15px;">hoem</button>
-            <button class="nav-btn" data-page="gallery" style="left: 150px; top: 15px;">epik savant gallurie</button>
             <button class="nav-btn" data-page="list" style="left: 380px; top: 15px;">savant lisssst</button>
             <button class="nav-btn" data-page="soon" style="left: 550px; top: 15px;">idk sumthin nuw hear suun</button>
+            <button class="nav-btn" data-page="gallery" style="left: 150px; top: 15px;">epik savant gallurie</button>
         </nav>
         
         <div id="content">
@@ -913,6 +915,12 @@
                 const imgHeight = gremlinImg.offsetHeight;
                 const imgWidth = gremlinImg.offsetWidth;
                 
+                // Play sound
+                const sound = savantSounds[Math.floor(Math.random() * savantSounds.length)];
+                gremlinSound.src = sound;
+                gremlinSound.volume = 0.5;
+                gremlinSound.play().catch(e => console.log('Sound blocked:', e));
+                
                 if (edge === 'bottom') {
                     // Bottom edge - pop up from below, no rotation
                     const xPos = 10 + Math.random() * 80;
@@ -996,12 +1004,6 @@
             if (gremlinImg.complete) {
                 gremlinImg.onload();
             }
-            
-            // Play sound
-            const sound = savantSounds[Math.floor(Math.random() * savantSounds.length)];
-            gremlinSound.src = sound;
-            gremlinSound.volume = 0.5;
-            gremlinSound.play().catch(e => console.log('Sound blocked:', e));
         }
         
         function startGremlinPopups() {
