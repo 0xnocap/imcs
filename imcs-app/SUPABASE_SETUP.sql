@@ -291,8 +291,8 @@ SELECT
   COUNT(*) as karma_score,
   w.status as whitelist_status
 FROM votes
-WHERE voter_identifier LIKE '0x%'  -- Only wallet addresses
 LEFT JOIN whitelist w ON votes.voter_identifier = w.wallet_address
+WHERE voter_identifier LIKE '0x%'  -- Only wallet addresses
 GROUP BY voter_identifier, w.status
 ORDER BY karma_score DESC;
 
