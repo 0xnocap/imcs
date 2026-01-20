@@ -227,28 +227,26 @@ export default function VotingCard({ submission, onVote, onSkip }: VotingCardPro
 
         {/* Content */}
         <div style={{ position: 'relative', zIndex: 2 }}>
-          {/* Message with dark semi-transparent background for readability */}
           <div style={{
-            background: 'rgba(0, 0, 0, 0.75)',
-            borderRadius: '12px',
-            padding: 'clamp(12px, 4vw, 20px)',
-            marginBottom: '15px',
-            border: '2px solid rgba(255,255,255,0.3)'
+            fontFamily: 'Comic Neue, cursive',
+            fontSize: 'clamp(18px, 5vw, 24px)',
+            color: '#fff',
+            WebkitTextStroke: '1px #000',
+            paintOrder: 'stroke fill',
+            lineHeight: 1.4,
+            marginBottom: '20px',
+            minHeight: '70px',
+            display: 'flex',
+            alignItems: 'center',
+            textAlign: 'center',
+            justifyContent: 'center',
+            fontWeight: 700
           }}>
-            <div style={{
-              fontFamily: 'Comic Neue, cursive',
-              fontSize: 'clamp(16px, 4.5vw, 22px)',
-              color: '#fff',
-              fontWeight: 700,
-              lineHeight: 1.4,
-              textAlign: 'center'
-            }}>
-              &quot;{submission.info}&quot;
-            </div>
+            &quot;{submission.info}&quot;
           </div>
 
           <div style={{
-            background: 'rgba(255,255,255,0.95)',
+            background: 'rgba(255,255,255,0.9)',
             padding: '10px 14px',
             borderRadius: '12px',
             border: '3px solid #000',
@@ -257,16 +255,15 @@ export default function VotingCard({ submission, onVote, onSkip }: VotingCardPro
             <div style={{
               fontFamily: 'Comic Neue, cursive',
               fontSize: 'clamp(16px, 4vw, 18px)',
-              fontWeight: 700,
+              fontWeight: 'bold',
               color: '#000'
             }}>
               {submission.name}
             </div>
             <div style={{
               fontFamily: 'monospace',
-              fontSize: 'clamp(11px, 3vw, 12px)',
-              color: '#333',
-              fontWeight: 600
+              fontSize: 'clamp(9px, 2.5vw, 11px)',
+              color: '#666'
             }}>
               {truncateAddress(submission.wallet_address)}
             </div>
