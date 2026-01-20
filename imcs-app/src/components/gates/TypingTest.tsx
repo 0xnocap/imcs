@@ -4,11 +4,21 @@ import { useState, useEffect, useRef } from 'react'
 import { calculateWPM, getTypingSuccessMessage, getTypingFailMessage } from '@/lib/utils'
 
 type TypingTestProps = {
-  onSuccess: () => void
+  onSuccess: (points: number, wpm: number) => void
 }
 
 const TARGET_TEXT = "i wish i was autistic...in like a super hacker programmer type of way...seeing lines of code like a rainman of the matrix. like an imaginary magic crypto savant"
 const TARGET_WPM = 30
+
+// Calculate points based on WPM
+const calculatePoints = (wpm: number): number => {
+  if (wpm >= 70) return 5
+  if (wpm >= 60) return 4
+  if (wpm >= 50) return 3
+  if (wpm >= 40) return 2
+  if (wpm >= 30) return 1
+  return 0
+}
 
 export default function TypingTest({ onSuccess }: TypingTestProps) {
   const [userInput, setUserInput] = useState('')
@@ -39,14 +49,15 @@ export default function TypingTest({ onSuccess }: TypingTestProps) {
 
       if (currentWpm >= TARGET_WPM) {
         // Success!
-        setMessage(`${getTypingSuccessMessage()} (${currentWpm} WPM)`)
+        const points = calculatePoints(currentWpm)
+        setMessage(`${getTypingSuccessMessage()} (${currentWpm} WPM - ${points} points!)`)
 
         // Record success
         recordAttempt(true, currentWpm)
 
         // Call success callback after delay
         setTimeout(() => {
-          onSuccess()
+          onSuccess(points, currentWpm)
         }, 2000)
       } else {
         // Failed - too slow
