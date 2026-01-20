@@ -11,13 +11,11 @@ const TRACKS = [
 
 export default function MusicPlayer() {
   const audioRef = useRef<HTMLAudioElement>(null)
-  const [currentTrackIndex, setCurrentTrackIndex] = useState(0)
+  // Start at a random track index
+  const [currentTrackIndex, setCurrentTrackIndex] = useState(() => Math.floor(Math.random() * TRACKS.length))
   const [hasStarted, setHasStarted] = useState(false)
 
   useEffect(() => {
-    // Shuffle tracks on mount
-    const shuffled = [...TRACKS].sort(() => Math.random() - 0.5)
-
     // Try to auto-play on mount
     const audio = audioRef.current
     if (audio) {

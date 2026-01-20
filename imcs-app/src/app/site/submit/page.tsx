@@ -323,10 +323,10 @@ export default function SubmitPage() {
     setStage('typing-test')
   }
 
-  const handleTypingSuccess = () => {
-    // Typing test passed - give minimum points (1 point)
-    setEarnedPoints(1)
-    setEarnedAccuracy(100) // Typing test doesn't have accuracy, but we need a value
+  const handleTypingSuccess = (points: number, wpm: number) => {
+    // Typing test passed - award points based on WPM
+    setEarnedPoints(points)
+    setEarnedAccuracy(wpm) // Store WPM as "accuracy" for consistency
     setStage('add-to-wallet')
   }
 

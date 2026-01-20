@@ -3,6 +3,7 @@
 import { ReactNode, useState, useRef, useEffect } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import MusicPlayer from '@/components/MusicPlayer'
+import PopupSavants from '@/components/PopupSavants'
 
 type NavButton = {
   id: string
@@ -65,20 +66,17 @@ export default function SiteLayout({ children }: { children: ReactNode }) {
   const handleMouseMove = (e: MouseEvent) => {
     if (!draggedBtn || !isDragging) return
 
-    const nav = document.querySelector('nav')
-    if (!nav) return
-
-    const navRect = nav.getBoundingClientRect()
     const btn = document.querySelector(`[data-btn-id="${draggedBtn}"]`) as HTMLElement
     const btnWidth = btn?.offsetWidth || 120
     const btnHeight = btn?.offsetHeight || 40
 
-    let newX = e.clientX - navRect.left - dragOffset.x
-    let newY = e.clientY - navRect.top - dragOffset.y
+    // Use viewport coordinates (no nav boundaries)
+    let newX = e.clientX - dragOffset.x
+    let newY = e.clientY - dragOffset.y
 
-    // Constrain to nav boundaries
-    newX = Math.max(0, Math.min(newX, navRect.width - btnWidth))
-    newY = Math.max(0, Math.min(newY, navRect.height - btnHeight))
+    // Constrain to viewport boundaries (keep button visible)
+    newX = Math.max(0, Math.min(newX, window.innerWidth - btnWidth))
+    newY = Math.max(0, Math.min(newY, window.innerHeight - btnHeight))
 
     setPositions(prev => ({
       ...prev,
@@ -110,36 +108,41 @@ export default function SiteLayout({ children }: { children: ReactNode }) {
         <h1>imaginary magic crypto savants</h1>
       </header>
 
-      {/* Navigation */}
-      <nav>
-        {navButtons.map(btn => {
-          const isActive = pathname === btn.path
-          const pos = positions[btn.id] || btn.defaultPos
+      {/* Navigation - Draggable buttons (fixed position, anywhere on screen) */}
+      {navButtons.map(btn => {
+        const isActive = pathname === btn.path
+        const pos = positions[btn.id] || btn.defaultPos
 
-          return (
-            <button
-              key={btn.id}
-              data-btn-id={btn.id}
-              className={`nav-btn ${isActive ? 'active' : ''} ${draggedBtn === btn.id ? 'dragging' : ''}`}
-              style={{
-                left: `${pos.x}px`,
-                top: `${pos.y}px`,
-              }}
-              onMouseDown={(e) => {
-                e.preventDefault()
-                handleMouseDown(e, btn.id)
-              }}
-              onClick={(e) => {
-                if (!isDragging) {
-                  router.push(btn.path)
-                }
-              }}
-            >
-              {btn.label}
-            </button>
-          )
-        })}
-      </nav>
+        return (
+          <button
+            key={btn.id}
+            data-btn-id={btn.id}
+            className={`nav-btn ${isActive ? 'active' : ''} ${draggedBtn === btn.id ? 'dragging' : ''}`}
+            style={{
+              position: 'fixed',
+              left: `${pos.x}px`,
+              top: `${pos.y}px`,
+              zIndex: 10000, // Very high z-index to always be on top
+            }}
+            onMouseDown={(e) => {
+              e.preventDefault()
+              handleMouseDown(e, btn.id)
+            }}
+            onClick={(e) => {
+              if (!isDragging) {
+                router.push(btn.path)
+              }
+            }}
+          >
+            {btn.label}
+          </button>
+        )
+      })}
+
+      {/* Header */}
+      <header>
+        <h1>imaginary magic crypto savants</h1>
+      </header>
 
       {/* Content */}
       <div id="content" style={{ display: 'flex', flexDirection: 'column' }}>
@@ -157,6 +160,9 @@ export default function SiteLayout({ children }: { children: ReactNode }) {
 
       {/* Background Music Player */}
       <MusicPlayer />
+
+      {/* Popup Savant Characters */}
+      <PopupSavants />
     </div>
   )
 }

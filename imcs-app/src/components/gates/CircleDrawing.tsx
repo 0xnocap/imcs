@@ -169,6 +169,23 @@ export default function CircleDrawing({ onSubmit, onGiveUp }: CircleDrawingProps
   const handleSubmit = async () => {
     const accuracyPercent = Math.round(accuracy * 100)
 
+    // Recalculate score to ensure we have the correct value
+    // (don't rely on state which may not have updated yet)
+    let scoreToSubmit: number
+    if (accuracyPercent >= 95) {
+      scoreToSubmit = 3
+    } else if (accuracyPercent >= 90) {
+      scoreToSubmit = 2.5
+    } else if (accuracyPercent >= 85) {
+      scoreToSubmit = 2
+    } else if (accuracyPercent >= 80) {
+      scoreToSubmit = 1.5
+    } else if (accuracyPercent >= 75) {
+      scoreToSubmit = 1
+    } else {
+      scoreToSubmit = 0
+    }
+
     // Record attempt
     try {
       const ipResponse = await fetch('https://api.ipify.org?format=json')
@@ -187,7 +204,7 @@ export default function CircleDrawing({ onSubmit, onGiveUp }: CircleDrawingProps
       console.error('Failed to record attempt:', e)
     }
 
-    onSubmit(score, accuracyPercent)
+    onSubmit(scoreToSubmit, accuracyPercent)
   }
 
   const accuracyPercent = Math.round(accuracy * 100)

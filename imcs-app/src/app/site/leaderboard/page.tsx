@@ -257,6 +257,19 @@ export default function LeaderboardPage() {
                           {sub.name}
                         </span>
                         <span style={{
+                          fontFamily: 'Comic Neue, cursive',
+                          fontSize: '16px',
+                          fontWeight: 'bold',
+                          color: '#ff00ff',
+                          textShadow: '1px 1px 0 rgba(0,0,0,0.3)',
+                          background: 'rgba(255,255,255,0.7)',
+                          padding: '2px 8px',
+                          borderRadius: '8px',
+                          border: '2px solid #000'
+                        }}>
+                          {sub.score} pts
+                        </span>
+                        <span style={{
                           fontFamily: 'monospace',
                           fontSize: '10px',
                           color: 'rgba(0,0,0,0.6)',
