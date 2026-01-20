@@ -10,6 +10,7 @@ type Submission = {
   name: string
   info: string
   score: number
+  rank: number
 }
 
 type VotingCardProps = {
@@ -76,10 +77,10 @@ export default function VotingCard({ submission, onVote, onSkip }: VotingCardPro
       ref={constraintsRef}
       style={{
         position: 'relative',
-        touchAction: 'none',
+        touchAction: 'pan-y',
         maxWidth: '550px',
         margin: '0 auto',
-        padding: '0 20px'
+        padding: '0 15px'
       }}
     >
       {/* Floating background emojis */}
@@ -220,7 +221,7 @@ export default function VotingCard({ submission, onVote, onSkip }: VotingCardPro
             color: '#000',
             lineHeight: 1
           }}>
-            #{submission.score}
+            #{submission.rank}
           </div>
         </div>
 
@@ -228,12 +229,12 @@ export default function VotingCard({ submission, onVote, onSkip }: VotingCardPro
         <div style={{ position: 'relative', zIndex: 2 }}>
           <div style={{
             fontFamily: 'Comic Neue, cursive',
-            fontSize: '24px',
+            fontSize: 'clamp(18px, 5vw, 24px)',
             color: '#fff',
             textShadow: '2px 2px 0 #000',
             lineHeight: 1.4,
             marginBottom: '20px',
-            minHeight: '80px',
+            minHeight: '70px',
             display: 'flex',
             alignItems: 'center',
             textAlign: 'center',
@@ -244,14 +245,14 @@ export default function VotingCard({ submission, onVote, onSkip }: VotingCardPro
 
           <div style={{
             background: 'rgba(255,255,255,0.9)',
-            padding: '10px 16px',
+            padding: '10px 14px',
             borderRadius: '12px',
             border: '3px solid #000',
             boxShadow: '3px 3px 0 #000'
           }}>
             <div style={{
               fontFamily: 'Comic Neue, cursive',
-              fontSize: '18px',
+              fontSize: 'clamp(16px, 4vw, 18px)',
               fontWeight: 'bold',
               color: '#000'
             }}>
@@ -259,7 +260,7 @@ export default function VotingCard({ submission, onVote, onSkip }: VotingCardPro
             </div>
             <div style={{
               fontFamily: 'monospace',
-              fontSize: '11px',
+              fontSize: 'clamp(9px, 2.5vw, 11px)',
               color: '#666'
             }}>
               {truncateAddress(submission.wallet_address)}
@@ -272,8 +273,9 @@ export default function VotingCard({ submission, onVote, onSkip }: VotingCardPro
       <div style={{
         display: 'flex',
         justifyContent: 'center',
-        gap: '40px',
-        marginTop: '25px'
+        alignItems: 'center',
+        gap: 'clamp(20px, 8vw, 40px)',
+        marginTop: '20px'
       }}>
         <motion.button
           onClick={() => handleButtonVote('downvote')}
@@ -281,12 +283,12 @@ export default function VotingCard({ submission, onVote, onSkip }: VotingCardPro
           whileTap={{ scale: 0.9 }}
           disabled={hasVoted}
           style={{
-            width: '70px',
-            height: '70px',
+            width: 'clamp(55px, 15vw, 70px)',
+            height: 'clamp(55px, 15vw, 70px)',
             borderRadius: '50%',
             background: '#ff4444',
             border: '4px solid #000',
-            fontSize: '35px',
+            fontSize: 'clamp(28px, 8vw, 35px)',
             cursor: hasVoted ? 'default' : 'pointer',
             boxShadow: '4px 4px 0 #000',
             display: 'flex',
@@ -304,12 +306,12 @@ export default function VotingCard({ submission, onVote, onSkip }: VotingCardPro
           whileTap={{ scale: 0.95 }}
           disabled={hasVoted}
           style={{
-            padding: '10px 20px',
+            padding: '8px 16px',
             borderRadius: '25px',
             background: '#888',
             border: '3px solid #000',
             fontFamily: 'Comic Neue, cursive',
-            fontSize: '16px',
+            fontSize: 'clamp(14px, 3.5vw, 16px)',
             cursor: hasVoted ? 'default' : 'pointer',
             boxShadow: '3px 3px 0 #000',
             alignSelf: 'center',
@@ -325,12 +327,12 @@ export default function VotingCard({ submission, onVote, onSkip }: VotingCardPro
           whileTap={{ scale: 0.9 }}
           disabled={hasVoted}
           style={{
-            width: '70px',
-            height: '70px',
+            width: 'clamp(55px, 15vw, 70px)',
+            height: 'clamp(55px, 15vw, 70px)',
             borderRadius: '50%',
             background: '#00ff00',
             border: '4px solid #000',
-            fontSize: '35px',
+            fontSize: 'clamp(28px, 8vw, 35px)',
             cursor: hasVoted ? 'default' : 'pointer',
             boxShadow: '4px 4px 0 #000',
             display: 'flex',
@@ -345,9 +347,9 @@ export default function VotingCard({ submission, onVote, onSkip }: VotingCardPro
 
       <div style={{
         textAlign: 'center',
-        marginTop: '15px',
+        marginTop: '12px',
         fontFamily: 'Comic Neue, cursive',
-        fontSize: '14px',
+        fontSize: 'clamp(12px, 3vw, 14px)',
         color: '#888'
       }}>
         swipe or tap 2 vote

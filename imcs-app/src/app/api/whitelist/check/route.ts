@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
       .eq('wallet_address', wallet)
       .single()
 
-    if (submission && submission.score >= 3) {
+    if (submission && submission.score >= 1000) {
       // Eligible! Run auto-update
       await supabase.rpc('update_whitelist_auto')
 

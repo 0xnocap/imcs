@@ -22,21 +22,12 @@ const navButtons: NavButton[] = [
 export default function SiteLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
+  const navRef = useRef<HTMLElement>(null)
+  const [isMobile, setIsMobile] = useState(false)
   const [draggedBtn, setDraggedBtn] = useState<string | null>(null)
   const [positions, setPositions] = useState<Record<string, { x: number; y: number }>>(
     () => {
-      // Load from localStorage if available
-      if (typeof window !== 'undefined') {
-        const saved = localStorage.getItem('navPositions')
-        if (saved) {
-          try {
-            return JSON.parse(saved)
-          } catch (e) {
-            // If parse fails, use defaults
-          }
-        }
-      }
-      // Default positions
+      // Default positions (relative to nav bar)
       return navButtons.reduce((acc, btn) => {
         acc[btn.id] = btn.defaultPos
         return acc
@@ -45,38 +36,53 @@ export default function SiteLayout({ children }: { children: ReactNode }) {
   )
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
   const [isDragging, setIsDragging] = useState(false)
+  const [hasDragged, setHasDragged] = useState(false)
+  const startPosRef = useRef({ x: 0, y: 0 })
 
-  // Save positions to localStorage whenever they change
+  // Check for mobile on mount and resize
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('navPositions', JSON.stringify(positions))
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768)
     }
-  }, [positions])
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
 
   const handleMouseDown = (e: React.MouseEvent, btnId: string) => {
+    if (isMobile) return // No dragging on mobile
     const rect = e.currentTarget.getBoundingClientRect()
     setDragOffset({
       x: e.clientX - rect.left,
       y: e.clientY - rect.top
     })
+    startPosRef.current = { x: e.clientX, y: e.clientY }
     setDraggedBtn(btnId)
     setIsDragging(true)
+    setHasDragged(false)
   }
 
   const handleMouseMove = (e: MouseEvent) => {
-    if (!draggedBtn || !isDragging) return
+    if (!draggedBtn || !isDragging || !navRef.current || isMobile) return
 
+    // Check if user moved enough to consider it a drag
+    const moveDistance = Math.abs(e.clientX - startPosRef.current.x) + Math.abs(e.clientY - startPosRef.current.y)
+    if (moveDistance > 5) {
+      setHasDragged(true)
+    }
+
+    const navRect = navRef.current.getBoundingClientRect()
     const btn = document.querySelector(`[data-btn-id="${draggedBtn}"]`) as HTMLElement
     const btnWidth = btn?.offsetWidth || 120
     const btnHeight = btn?.offsetHeight || 40
 
-    // Use viewport coordinates (no nav boundaries)
-    let newX = e.clientX - dragOffset.x
-    let newY = e.clientY - dragOffset.y
+    // Calculate position relative to nav bar
+    let newX = e.clientX - navRect.left - dragOffset.x
+    let newY = e.clientY - navRect.top - dragOffset.y
 
-    // Constrain to viewport boundaries (keep button visible)
-    newX = Math.max(0, Math.min(newX, window.innerWidth - btnWidth))
-    newY = Math.max(0, Math.min(newY, window.innerHeight - btnHeight))
+    // Constrain to nav bar boundaries
+    newX = Math.max(0, Math.min(newX, navRect.width - btnWidth))
+    newY = Math.max(0, Math.min(newY, navRect.height - btnHeight))
 
     setPositions(prev => ({
       ...prev,
@@ -89,8 +95,15 @@ export default function SiteLayout({ children }: { children: ReactNode }) {
     setIsDragging(false)
   }
 
+  const handleClick = (e: React.MouseEvent, path: string) => {
+    // Only navigate if we didn't drag (or on mobile, always navigate)
+    if (!hasDragged || isMobile) {
+      router.push(path)
+    }
+  }
+
   useEffect(() => {
-    if (isDragging) {
+    if (isDragging && !isMobile) {
       window.addEventListener('mousemove', handleMouseMove)
       window.addEventListener('mouseup', handleMouseUp)
 
@@ -99,7 +112,7 @@ export default function SiteLayout({ children }: { children: ReactNode }) {
         window.removeEventListener('mouseup', handleMouseUp)
       }
     }
-  }, [isDragging, draggedBtn])
+  }, [isDragging, draggedBtn, isMobile])
 
   return (
     <div id="main-site">
@@ -108,41 +121,34 @@ export default function SiteLayout({ children }: { children: ReactNode }) {
         <h1>imaginary magic crypto savants</h1>
       </header>
 
-      {/* Navigation - Draggable buttons (fixed position, anywhere on screen) */}
-      {navButtons.map(btn => {
-        const isActive = pathname === btn.path
-        const pos = positions[btn.id] || btn.defaultPos
+      {/* Navigation Bar - Magenta bar with draggable buttons (desktop) or flex buttons (mobile) */}
+      <nav ref={navRef}>
+        {navButtons.map(btn => {
+          const isActive = pathname === btn.path
+          const pos = positions[btn.id] || btn.defaultPos
 
-        return (
-          <button
-            key={btn.id}
-            data-btn-id={btn.id}
-            className={`nav-btn ${isActive ? 'active' : ''} ${draggedBtn === btn.id ? 'dragging' : ''}`}
-            style={{
-              position: 'fixed',
-              left: `${pos.x}px`,
-              top: `${pos.y}px`,
-              zIndex: 10000, // Very high z-index to always be on top
-            }}
-            onMouseDown={(e) => {
-              e.preventDefault()
-              handleMouseDown(e, btn.id)
-            }}
-            onClick={(e) => {
-              if (!isDragging) {
-                router.push(btn.path)
-              }
-            }}
-          >
-            {btn.label}
-          </button>
-        )
-      })}
-
-      {/* Header */}
-      <header>
-        <h1>imaginary magic crypto savants</h1>
-      </header>
+          return (
+            <button
+              key={btn.id}
+              data-btn-id={btn.id}
+              className={`nav-btn ${isActive ? 'active' : ''} ${draggedBtn === btn.id ? 'dragging' : ''}`}
+              style={isMobile ? {} : {
+                left: `${pos.x}px`,
+                top: `${pos.y}px`,
+              }}
+              onMouseDown={(e) => {
+                if (!isMobile) {
+                  e.preventDefault()
+                  handleMouseDown(e, btn.id)
+                }
+              }}
+              onClick={(e) => handleClick(e, btn.path)}
+            >
+              {btn.label}
+            </button>
+          )
+        })}
+      </nav>
 
       {/* Content */}
       <div id="content" style={{ display: 'flex', flexDirection: 'column' }}>

@@ -13,7 +13,39 @@ export default function HomePage() {
   ]
 
   return (
-    <div className="page active" id="home">
+    <div className="page active" id="home" style={{ position: 'relative', minHeight: '70vh' }}>
+      {/* Center "imaginate" text - Impact/meme style */}
+      <div style={{
+        position: 'absolute',
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-50%, -50%)',
+        zIndex: 10,
+        textAlign: 'center',
+      }}>
+        <h1 style={{
+          fontFamily: 'Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif',
+          fontSize: 'clamp(60px, 15vw, 140px)',
+          color: '#fff',
+          textTransform: 'uppercase',
+          letterSpacing: '4px',
+          textShadow: `
+            -4px -4px 0 #000,
+            4px -4px 0 #000,
+            -4px 4px 0 #000,
+            4px 4px 0 #000,
+            -4px 0 0 #000,
+            4px 0 0 #000,
+            0 -4px 0 #000,
+            0 4px 0 #000
+          `,
+          margin: 0,
+          lineHeight: 1,
+        }}>
+          imaginate
+        </h1>
+      </div>
+
       {emojis.map((item, i) => (
         <div
           key={i}

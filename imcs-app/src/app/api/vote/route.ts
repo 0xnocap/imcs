@@ -90,6 +90,44 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Award 1 point to the voter's submission (if they have one)
+    // Try to find voter's submission by wallet first, then by IP
+    let voterBonusApplied = false
+    
+    // First try wallet address
+    if (voterWallet) {
+      const { data: voterSubmission } = await supabase
+        .from('submissions')
+        .select('id, score')
+        .eq('wallet_address', voterWallet.toLowerCase())
+        .single()
+
+      if (voterSubmission) {
+        await supabase
+          .from('submissions')
+          .update({ score: voterSubmission.score + 1 })
+          .eq('id', voterSubmission.id)
+        voterBonusApplied = true
+      }
+    }
+    
+    // If no wallet match, try IP address
+    if (!voterBonusApplied && voterIdentifier && !voterIdentifier.startsWith('0x')) {
+      const { data: voterSubmission } = await supabase
+        .from('submissions')
+        .select('id, score')
+        .eq('ip_address', voterIdentifier)
+        .single()
+
+      if (voterSubmission) {
+        await supabase
+          .from('submissions')
+          .update({ score: voterSubmission.score + 1 })
+          .eq('id', voterSubmission.id)
+        voterBonusApplied = true
+      }
+    }
+
     // Get updated submission
     const { data: updatedSubmission } = await supabase
       .from('submissions')
@@ -101,6 +139,7 @@ export async function POST(request: NextRequest) {
       success: true,
       message: getVoteResponse(),
       submission: updatedSubmission,
+      voter_bonus: voterBonusApplied ? 1 : 0,
     })
   } catch (error) {
     console.error('Vote error:', error)

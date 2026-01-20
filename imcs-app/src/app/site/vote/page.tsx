@@ -10,6 +10,7 @@ type Submission = {
   name: string
   info: string
   score: number
+  rank: number
 }
 
 export default function VotePage() {
@@ -204,10 +205,10 @@ export default function VotePage() {
       {/* Title */}
       <div style={{
         textAlign: 'center',
-        padding: '15px 20px 0',
+        padding: '15px 15px 0',
       }}>
         <h1 style={{
-          fontSize: '48px',
+          fontSize: 'clamp(32px, 10vw, 48px)',
           color: '#fff',
           textShadow: '3px 3px 0 #000',
           marginBottom: '5px'
@@ -215,7 +216,7 @@ export default function VotePage() {
           aprove r denie
         </h1>
         <p style={{
-          fontSize: '20px',
+          fontSize: 'clamp(16px, 4vw, 20px)',
           color: '#fff',
           textShadow: '2px 2px 0 #000',
           marginBottom: '10px'

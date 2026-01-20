@@ -431,34 +431,173 @@ nav {
 /* Mobile responsive */
 @media (max-width: 768px) {
   h1 {
-    font-size: 32px;
+    font-size: 28px;
+    letter-spacing: 1px;
+  }
+
+  header {
+    padding: 12px 10px;
+  }
+
+  /* Nav bar - stack buttons vertically on mobile */
+  nav {
+    min-height: auto;
+    padding: 10px;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
   }
 
   .nav-btn {
     position: relative !important;
+    left: auto !important;
+    top: auto !important;
     transform: none !important;
     cursor: pointer;
+    font-size: 16px;
+    padding: 8px 14px;
+    flex-shrink: 0;
   }
 
   .form-container {
-    margin: 20px;
-    padding: 20px;
+    margin: 15px 10px;
+    padding: 20px 15px;
+    transform: none;
   }
 
   .form-title {
-    font-size: 28px;
+    font-size: 26px;
+  }
+
+  .form-group label {
+    font-size: 18px;
+  }
+
+  .form-group input,
+  .form-group textarea {
+    font-size: 16px;
+    padding: 10px;
+  }
+
+  .submit-btn {
+    font-size: 22px;
+    padding: 12px;
   }
 
   .gallery-title {
-    font-size: 32px;
+    font-size: 28px;
   }
 
   .rainbow-text {
-    font-size: 36px;
+    font-size: 32px;
   }
 
   .lock-text {
+    font-size: 28px;
+  }
+
+  .marquee {
+    font-size: 16px;
+    padding: 8px;
+  }
+
+  .floating-emoji {
+    font-size: 40px;
+  }
+
+  .success-message {
+    margin: 20px 10px;
+    padding: 20px;
+    transform: none;
+  }
+
+  .success-message h2 {
     font-size: 32px;
+  }
+
+  .success-message p {
+    font-size: 18px;
+  }
+
+  /* Typing test mobile */
+  .typing-test-container {
+    padding: 15px 10px;
+  }
+
+  .typing-target-text {
+    font-size: 16px;
+    padding: 15px;
+  }
+
+  .typing-input {
+    font-size: 16px;
+    height: 120px;
+    padding: 12px;
+  }
+
+  .typing-wpm {
+    font-size: 36px;
+  }
+
+  /* Leaderboard mobile */
+  .leaderboard-container {
+    padding: 10px;
+    margin: 15px auto;
+  }
+
+  .leaderboard-tabs {
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .leaderboard-tab {
+    font-size: 18px;
+    padding: 10px 20px;
+  }
+
+  .leaderboard-entry {
+    padding: 15px;
+    gap: 12px;
+  }
+
+  .leaderboard-rank {
+    font-size: 28px;
+    min-width: 45px;
+  }
+
+  .leaderboard-score {
+    font-size: 24px;
+  }
+}
+
+/* Extra small screens */
+@media (max-width: 480px) {
+  h1 {
+    font-size: 22px;
+  }
+
+  .nav-btn {
+    font-size: 14px;
+    padding: 6px 10px;
+  }
+
+  .form-container {
+    margin: 10px 5px;
+    padding: 15px 10px;
+  }
+
+  .form-title {
+    font-size: 22px;
+  }
+
+  .submit-btn {
+    font-size: 18px;
+  }
+
+  .success-message h2 {
+    font-size: 26px;
   }
 }
 

@@ -77,11 +77,11 @@ export function randomElement<T>(array: T[]): T {
 
 // Savant messages based on score
 export function getWhitelistMessage(score: number): string {
-  if (score >= 3) {
+  if (score >= 1000) {
     return "CONGRAAAATS U AR SAVANT!!! 🎉🚀✨"
-  } else if (score >= 2) {
+  } else if (score >= 500) {
     return "ur almost there dummie, need sum magic ✨"
-  } else if (score >= 1) {
+  } else if (score >= 100) {
     return "u just startin, use ur imaginashun 🧠"
   } else if (score === 0) {
     return "do u even kno how 2 imaginate? 🤨"
@@ -238,14 +238,14 @@ export async function celebrateWhitelist() {
 
 // Vote weight calculator
 export function calculateVoteWeight(hasWallet: boolean): number {
-  // Wallet-connected vote = 1.0
-  // IP-only vote = 0.167 (1/6)
-  return hasWallet ? 1.0 : 0.167
+  // Wallet-connected vote = 100
+  // IP-only vote = 16.7 (1/6 of 100)
+  return hasWallet ? 100 : 16.7
 }
 
 // Check if whitelist eligible based on score
 export function isWhitelistEligible(score: number): boolean {
-  return score >= 3
+  return score >= 1000
 }
 
 // Sanitize user input (prevent XSS)

@@ -132,18 +132,18 @@ export default function CircleDrawing({ onSubmit, onGiveUp }: CircleDrawingProps
     const accuracyPercent = Math.round(finalAccuracy * 100)
     setAccuracy(finalAccuracy)
 
-    // Calculate score based on accuracy
+    // Calculate score based on accuracy (x100 scale)
     let scoreEarned: number
     if (accuracyPercent >= 95) {
-      scoreEarned = 3
+      scoreEarned = 300
     } else if (accuracyPercent >= 90) {
-      scoreEarned = 2.5
+      scoreEarned = 250
     } else if (accuracyPercent >= 85) {
-      scoreEarned = 2
+      scoreEarned = 200
     } else if (accuracyPercent >= 80) {
-      scoreEarned = 1.5
+      scoreEarned = 150
     } else if (accuracyPercent >= 75) {
-      scoreEarned = 1
+      scoreEarned = 100
     } else {
       scoreEarned = 0
     }
@@ -169,19 +169,19 @@ export default function CircleDrawing({ onSubmit, onGiveUp }: CircleDrawingProps
   const handleSubmit = async () => {
     const accuracyPercent = Math.round(accuracy * 100)
 
-    // Recalculate score to ensure we have the correct value
+    // Recalculate score to ensure we have the correct value (x100 scale)
     // (don't rely on state which may not have updated yet)
     let scoreToSubmit: number
     if (accuracyPercent >= 95) {
-      scoreToSubmit = 3
+      scoreToSubmit = 300
     } else if (accuracyPercent >= 90) {
-      scoreToSubmit = 2.5
+      scoreToSubmit = 250
     } else if (accuracyPercent >= 85) {
-      scoreToSubmit = 2
+      scoreToSubmit = 200
     } else if (accuracyPercent >= 80) {
-      scoreToSubmit = 1.5
+      scoreToSubmit = 150
     } else if (accuracyPercent >= 75) {
-      scoreToSubmit = 1
+      scoreToSubmit = 100
     } else {
       scoreToSubmit = 0
     }
@@ -230,12 +230,15 @@ export default function CircleDrawing({ onSubmit, onGiveUp }: CircleDrawingProps
           top: '50%',
           left: '50%',
           transform: 'translate(-50%, -50%)',
-          fontSize: '48px',
+          fontSize: 'clamp(28px, 8vw, 48px)',
           color: '#fff',
           textShadow: '3px 3px 0 #000',
           textAlign: 'center',
           pointerEvents: 'none',
-          zIndex: 1
+          zIndex: 1,
+          padding: '0 20px',
+          width: '100%',
+          maxWidth: '500px'
         }}>
           draw a perfect circle
         </div>
@@ -252,7 +255,7 @@ export default function CircleDrawing({ onSubmit, onGiveUp }: CircleDrawingProps
           zIndex: 1
         }}>
           <div style={{
-            fontSize: '120px',
+            fontSize: 'clamp(60px, 20vw, 120px)',
             color: getColor(accuracy),
             textShadow: '4px 4px 0 #000',
             fontWeight: 'bold',
@@ -262,7 +265,7 @@ export default function CircleDrawing({ onSubmit, onGiveUp }: CircleDrawingProps
           </div>
           {score > 0 && (
             <div style={{
-              fontSize: '36px',
+              fontSize: 'clamp(24px, 6vw, 36px)',
               color: '#fff',
               textShadow: '2px 2px 0 #000'
             }}>
@@ -296,25 +299,33 @@ export default function CircleDrawing({ onSubmit, onGiveUp }: CircleDrawingProps
       {hasDrawn && (
         <div style={{
           position: 'fixed',
-          bottom: '50px',
+          bottom: 'max(30px, env(safe-area-inset-bottom, 30px))',
           left: '50%',
           transform: 'translateX(-50%)',
           display: 'flex',
-          gap: '20px',
-          zIndex: 10
+          flexDirection: 'row',
+          flexWrap: 'wrap',
+          justifyContent: 'center',
+          gap: '12px',
+          zIndex: 10,
+          padding: '0 15px',
+          width: '100%',
+          maxWidth: '400px'
         }}>
           <button
             onClick={handleSubmit}
             style={{
               fontFamily: 'Comic Neue, cursive',
-              fontSize: '24px',
-              padding: '15px 40px',
+              fontSize: 'clamp(18px, 5vw, 24px)',
+              padding: '12px 25px',
               background: score > 0 ? '#00ff00' : '#ffff00',
               border: '4px solid #fff',
               cursor: 'pointer',
               boxShadow: '5px 5px 0 #fff',
               color: '#000',
-              fontWeight: 'bold'
+              fontWeight: 'bold',
+              flex: '1 1 auto',
+              minWidth: '120px'
             }}
           >
             submit
@@ -323,15 +334,17 @@ export default function CircleDrawing({ onSubmit, onGiveUp }: CircleDrawingProps
             onClick={onGiveUp}
             style={{
               fontFamily: 'Comic Neue, cursive',
-              fontSize: '24px',
-              padding: '15px 40px',
+              fontSize: 'clamp(18px, 5vw, 24px)',
+              padding: '12px 25px',
               background: '#ff6b9d',
               border: '4px solid #fff',
               cursor: 'pointer',
               boxShadow: '5px 5px 0 #fff',
               color: '#fff',
               fontWeight: 'bold',
-              textShadow: '2px 2px 0 #000'
+              textShadow: '2px 2px 0 #000',
+              flex: '1 1 auto',
+              minWidth: '120px'
             }}
           >
             dis is hard
@@ -344,12 +357,12 @@ export default function CircleDrawing({ onSubmit, onGiveUp }: CircleDrawingProps
           onClick={clearCanvas}
           style={{
             position: 'fixed',
-            bottom: '50px',
+            bottom: 'max(30px, env(safe-area-inset-bottom, 30px))',
             left: '50%',
             transform: 'translateX(-50%)',
             fontFamily: 'Comic Neue, cursive',
-            fontSize: '20px',
-            padding: '12px 30px',
+            fontSize: 'clamp(16px, 4vw, 20px)',
+            padding: '12px 25px',
             background: '#ccc',
             border: '3px solid #fff',
             cursor: 'pointer',

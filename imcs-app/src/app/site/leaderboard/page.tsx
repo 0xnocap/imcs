@@ -9,6 +9,7 @@ type Submission = {
   name: string
   info: string
   score: number
+  submission_score?: number
   whitelist_status: string | null
 }
 
@@ -99,7 +100,7 @@ export default function LeaderboardPage() {
           animate={{ rotate: [0, -1, 1, 0] }}
           transition={{ duration: 2, repeat: Infinity }}
           style={{
-            fontSize: '46px',
+            fontSize: 'clamp(32px, 10vw, 46px)',
             textAlign: 'center',
             color: '#fff',
             textShadow: '4px 4px 0 #ff00ff, -2px -2px 0 #00ffff',
@@ -110,14 +111,14 @@ export default function LeaderboardPage() {
           leederbord
         </motion.h1>
         <p style={{
-          fontSize: '18px',
+          fontSize: 'clamp(14px, 4vw, 18px)',
           textAlign: 'center',
           color: '#ffff00',
           marginBottom: '20px',
           fontFamily: 'Comic Neue, cursive',
           textShadow: '2px 2px 0 #000'
         }}>
-          who da best savants???
+          tahp 100 savaants
         </p>
 
         {/* Search */}
@@ -173,7 +174,7 @@ export default function LeaderboardPage() {
             <h3 style={{ marginBottom: '8px', fontFamily: 'Comic Neue, cursive' }}>found em!</h3>
             <div style={{ fontFamily: 'Comic Neue, cursive', fontSize: '14px' }}>
               <div><strong>name:</strong> {searchResult.name}</div>
-              <div><strong>score:</strong> {searchResult.score}</div>
+              <div><strong>score:</strong> {searchResult.submission_score ?? searchResult.score}</div>
               <div><strong>info:</strong> {searchResult.info}</div>
             </div>
           </motion.div>
@@ -236,16 +237,27 @@ export default function LeaderboardPage() {
 
                   {/* Content */}
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-                    <span style={{
-                      fontFamily: 'Comic Neue, cursive',
-                      fontSize: '18px',
-                      fontWeight: 'bold',
-                      color: '#fff',
-                      textShadow: '2px 2px 0 #000',
-                      minWidth: '35px'
-                    }}>
-                      #{rank}
-                    </span>
+                    <div style={{ minWidth: '55px', textAlign: 'center' }}>
+                      <span style={{
+                        fontFamily: 'Comic Neue, cursive',
+                        fontSize: '18px',
+                        fontWeight: 'bold',
+                        color: '#fff',
+                        textShadow: '2px 2px 0 #000',
+                        display: 'block'
+                      }}>
+                        #{rank}
+                      </span>
+                      <span style={{
+                        fontFamily: 'Comic Neue, cursive',
+                        fontSize: '14px',
+                        fontWeight: 'bold',
+                        color: '#ff00ff',
+                        textShadow: '1px 1px 0 rgba(0,0,0,0.3)'
+                      }}>
+                        {sub.score} pts
+                      </span>
+                    </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', flexWrap: 'wrap' }}>
                         <span style={{
@@ -255,19 +267,6 @@ export default function LeaderboardPage() {
                           color: '#000'
                         }}>
                           {sub.name}
-                        </span>
-                        <span style={{
-                          fontFamily: 'Comic Neue, cursive',
-                          fontSize: '16px',
-                          fontWeight: 'bold',
-                          color: '#ff00ff',
-                          textShadow: '1px 1px 0 rgba(0,0,0,0.3)',
-                          background: 'rgba(255,255,255,0.7)',
-                          padding: '2px 8px',
-                          borderRadius: '8px',
-                          border: '2px solid #000'
-                        }}>
-                          {sub.score} pts
                         </span>
                         <span style={{
                           fontFamily: 'monospace',

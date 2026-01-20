@@ -1,7 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useEffect, useRef, useState } from 'react'
 
 const SAVANTS = [
   '/assets/character/savant-dopey.png',
@@ -10,142 +9,195 @@ const SAVANTS = [
   '/assets/character/savant-smoke.png',
 ]
 
-type Edge = 'top' | 'left' | 'right'
+const SIZES = [120, 150, 180, 200]
+const EDGES = ['bottom', 'top', 'left', 'right'] as const
 
-type PopupSavant = {
+type Edge = typeof EDGES[number]
+
+type ActiveSavant = {
   id: number
-  image: string
+  character: string
   edge: Edge
-  position: number // percentage along the edge (0-100)
+  size: number
+  position: number
+  duration: number
 }
 
 export default function PopupSavants() {
-  const [savants, setSavants] = useState<PopupSavant[]>([])
-  const [nextId, setNextId] = useState(0)
+  const [activeSavant, setActiveSavant] = useState<ActiveSavant | null>(null)
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const idRef = useRef(0)
+
+  const showSavant = () => {
+    const character = SAVANTS[Math.floor(Math.random() * SAVANTS.length)]
+    const edge = EDGES[Math.floor(Math.random() * EDGES.length)]
+    const size = SIZES[Math.floor(Math.random() * SIZES.length)]
+    const position = 10 + Math.random() * 80
+    const duration = 1500 + Math.random() * 2000 // total animation time
+
+    idRef.current += 1
+
+    setActiveSavant({
+      id: idRef.current,
+      character,
+      edge,
+      size,
+      position,
+      duration,
+    })
+
+    // Clear after animation completes
+    setTimeout(() => {
+      setActiveSavant(null)
+    }, duration)
+  }
 
   useEffect(() => {
-    const spawnSavant = () => {
-      const edges: Edge[] = ['top', 'left', 'right']
-      const edge = edges[Math.floor(Math.random() * edges.length)]
-      const image = SAVANTS[Math.floor(Math.random() * SAVANTS.length)]
-      const position = Math.random() * 100
-
-      const newSavant: PopupSavant = {
-        id: nextId,
-        image,
-        edge,
-        position,
-      }
-
-      setSavants(prev => [...prev, newSavant])
-      setNextId(prev => prev + 1)
-
-      // Remove savant after animation completes
-      setTimeout(() => {
-        setSavants(prev => prev.filter(s => s.id !== newSavant.id))
-      }, 3000)
-    }
-
-    // Spawn a savant every 5-15 seconds
     const scheduleNext = () => {
-      const delay = 5000 + Math.random() * 10000
-      setTimeout(() => {
-        spawnSavant()
+      const delay = 2500 + Math.random() * 2000
+      timeoutRef.current = setTimeout(() => {
+        showSavant()
         scheduleNext()
       }, delay)
     }
 
-    scheduleNext()
+    // First popup
+    timeoutRef.current = setTimeout(() => {
+      showSavant()
+      scheduleNext()
+    }, 1000)
 
-    // Clean up on unmount
-    return () => setSavants([])
-  }, [nextId])
-
-  const getStyle = (savant: PopupSavant) => {
-    const baseStyle: React.CSSProperties = {
-      position: 'fixed',
-      width: '150px',
-      height: 'auto',
-      pointerEvents: 'none',
-      zIndex: 9999,
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current)
     }
+  }, [])
 
-    switch (savant.edge) {
-      case 'top':
-        return {
-          ...baseStyle,
-          top: '-5px', // Hide bottom 5px
-          left: `${savant.position}%`,
-          transform: 'translateX(-50%) rotate(180deg)', // Rotate so bottom faces edge
-        }
-      case 'left':
-        return {
-          ...baseStyle,
-          left: '-5px', // Hide bottom 5px
-          top: `${savant.position}%`,
-          transform: 'translateY(-50%) rotate(90deg)', // Rotate so bottom faces edge
-        }
-      case 'right':
-        return {
-          ...baseStyle,
-          right: '-5px', // Hide bottom 5px
-          top: `${savant.position}%`,
-          transform: 'translateY(-50%) rotate(-90deg)', // Rotate so bottom faces edge
-        }
-      default:
-        return baseStyle
-    }
+  if (!activeSavant) return null
+
+  const { edge, size, position, duration, character, id } = activeSavant
+
+  // Unique animation name for this instance
+  const animName = `savant-${edge}-${id}`
+
+  // Generate keyframes based on edge
+  // The animation slides in, pauses, then slides back out
+  // Using a wrapper div for position/rotation and inner animation for the slide
+
+  let keyframes = ''
+  let containerStyle: React.CSSProperties = {
+    position: 'fixed',
+    zIndex: 9999,
+    pointerEvents: 'none',
+  }
+  let imgStyle: React.CSSProperties = {
+    width: size,
+    height: 'auto',
+    display: 'block',
   }
 
-  const getAnimationVariants = (edge: Edge) => {
-    switch (edge) {
-      case 'top':
-        return {
-          initial: { y: 0 },
-          animate: { y: 100 },
-          exit: { y: 0 },
+  // Calculate timing: 15% enter, 70% stay, 15% exit
+  const enterEnd = 15
+  const exitStart = 85
+
+  switch (edge) {
+    case 'bottom':
+      containerStyle = {
+        ...containerStyle,
+        bottom: 0,
+        left: `${position}%`,
+        transform: 'translateX(-50%)',
+      }
+      keyframes = `
+        @keyframes ${animName} {
+          0% { transform: translateY(100%); }
+          ${enterEnd}% { transform: translateY(5%); }
+          ${exitStart}% { transform: translateY(5%); }
+          100% { transform: translateY(100%); }
         }
-      case 'left':
-        return {
-          initial: { x: 0 },
-          animate: { x: 100 },
-          exit: { x: 0 },
+      `
+      imgStyle = {
+        ...imgStyle,
+        animation: `${animName} ${duration}ms ease-in-out forwards`,
+      }
+      break
+
+    case 'top':
+      containerStyle = {
+        ...containerStyle,
+        top: 0,
+        left: `${position}%`,
+        transform: 'translateX(-50%) rotate(180deg)',
+      }
+      keyframes = `
+        @keyframes ${animName} {
+          0% { transform: translateY(100%); }
+          ${enterEnd}% { transform: translateY(5%); }
+          ${exitStart}% { transform: translateY(5%); }
+          100% { transform: translateY(100%); }
         }
-      case 'right':
-        return {
-          initial: { x: 0 },
-          animate: { x: -100 },
-          exit: { x: 0 },
+      `
+      imgStyle = {
+        ...imgStyle,
+        animation: `${animName} ${duration}ms ease-in-out forwards`,
+      }
+      break
+
+    case 'left':
+      containerStyle = {
+        ...containerStyle,
+        left: 0,
+        top: `${position}%`,
+        transform: 'translateY(-50%) rotate(90deg)',
+        transformOrigin: 'top left',
+      }
+      keyframes = `
+        @keyframes ${animName} {
+          0% { transform: translateX(-100%); }
+          ${enterEnd}% { transform: translateX(-5%); }
+          ${exitStart}% { transform: translateX(-5%); }
+          100% { transform: translateX(-100%); }
         }
-      default:
-        return {
-          initial: {},
-          animate: {},
-          exit: {},
+      `
+      imgStyle = {
+        ...imgStyle,
+        animation: `${animName} ${duration}ms ease-in-out forwards`,
+      }
+      break
+
+    case 'right':
+      containerStyle = {
+        ...containerStyle,
+        right: 0,
+        top: `${position}%`,
+        transform: 'translateY(-50%) rotate(-90deg)',
+        transformOrigin: 'top right',
+      }
+      keyframes = `
+        @keyframes ${animName} {
+          0% { transform: translateX(100%); }
+          ${enterEnd}% { transform: translateX(5%); }
+          ${exitStart}% { transform: translateX(5%); }
+          100% { transform: translateX(100%); }
         }
-    }
+      `
+      imgStyle = {
+        ...imgStyle,
+        animation: `${animName} ${duration}ms ease-in-out forwards`,
+      }
+      break
   }
 
   return (
-    <AnimatePresence>
-      {savants.map(savant => {
-        const variants = getAnimationVariants(savant.edge)
-        return (
-          <motion.img
-            key={savant.id}
-            src={savant.image}
-            alt="savant"
-            style={getStyle(savant)}
-            initial={variants.initial}
-            animate={variants.animate}
-            exit={variants.exit}
-            transition={{
-              duration: 1.5,
-              ease: 'easeInOut',
-            }}
-          />
-        )
-      })}
-    </AnimatePresence>
+    <>
+      <style dangerouslySetInnerHTML={{ __html: keyframes }} />
+      <div style={containerStyle}>
+        <img
+          key={id}
+          src={character}
+          alt="savant"
+          style={imgStyle}
+        />
+      </div>
+    </>
   )
 }

@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS votes (
   submission_id UUID REFERENCES submissions(id) ON DELETE CASCADE,
   voter_identifier TEXT NOT NULL,  -- Wallet address OR IP address
   vote_type TEXT CHECK(vote_type IN ('upvote', 'downvote')) NOT NULL,
-  vote_weight NUMERIC DEFAULT 1.0,  -- 1.0 for wallet, 0.167 for IP
+  vote_weight NUMERIC DEFAULT 100,  -- 100 for wallet, 16.7 for IP
   created_at TIMESTAMP DEFAULT NOW(),
   UNIQUE(submission_id, voter_identifier)  -- Prevent duplicate votes
 );
@@ -119,12 +119,12 @@ RETURNS TABLE(updated_count INTEGER) AS $$
 DECLARE
   count_updated INTEGER := 0;
 BEGIN
-  -- Auto-approve submissions with score >= 3
+  -- Auto-approve submissions with score >= 1000
   WITH approved_submissions AS (
     INSERT INTO whitelist (wallet_address, status, method)
     SELECT wallet_address, 'approved', 'auto_score'
     FROM submissions
-    WHERE score >= 3
+    WHERE score >= 1000
     ON CONFLICT (wallet_address)
     DO UPDATE SET
       status = 'approved',
@@ -211,9 +211,9 @@ BEGIN
   INSERT INTO referrals (referrer_wallet, referred_wallet, referral_code)
   VALUES (referrer_wallet, referred_wallet, ref_code);
 
-  -- Give bonus to referrer (0.5 points)
+  -- Give bonus to referrer (50 points)
   UPDATE submissions
-  SET score = score + 0.5
+  SET score = score + 50
   WHERE wallet_address = referrer_wallet;
 
   RETURN TRUE;
@@ -363,6 +363,35 @@ LEFT JOIN (
 --   ('0x1234567890123456789012345678901234567890', 'approved', 'collaboration', 'Project partner'),
 --   ('0xABCDEF1234567890123456789012345678901234', 'approved', 'manual', 'Team member')
 -- ON CONFLICT (wallet_address) DO NOTHING;
+
+-- ========================================
+-- MIGRATION: Multiply all points by 100
+-- ========================================
+-- Run this ONCE to scale existing data to the new point system
+-- This multiplies all scores and vote weights by 100
+
+-- Multiply all submission scores by 100
+UPDATE submissions SET score = score * 100 WHERE score != 0;
+
+-- Multiply all vote weights by 100
+UPDATE votes SET vote_weight = vote_weight * 100 WHERE vote_weight != 0;
+
+-- Recalculate all submission scores based on new vote weights
+-- (This ensures consistency)
+UPDATE submissions s
+SET score = (
+  SELECT COALESCE(
+    SUM(CASE
+      WHEN vote_type = 'upvote' THEN vote_weight
+      WHEN vote_type = 'downvote' THEN -vote_weight
+      ELSE 0
+    END),
+    0
+  )
+  FROM votes
+  WHERE submission_id = s.id
+)
+WHERE EXISTS (SELECT 1 FROM votes WHERE submission_id = s.id);
 
 -- ========================================
 -- DONE!

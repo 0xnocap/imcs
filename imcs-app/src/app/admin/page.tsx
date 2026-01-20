@@ -29,13 +29,22 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(false)
   const [activeTab, setActiveTab] = useState<'submissions' | 'whitelist' | 'sync'>('submissions')
 
-  const handleLogin = () => {
-    // Simple password check (you should use env var)
-    if (password === process.env.NEXT_PUBLIC_ADMIN_PASSWORD || password === 'savant123') {
-      setIsAuthenticated(true)
-      loadData()
-    } else {
-      alert('wrong password dummie')
+  const handleLogin = async () => {
+    try {
+      const response = await fetch('/api/admin/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password })
+      })
+
+      if (response.ok) {
+        setIsAuthenticated(true)
+        loadData()
+      } else {
+        alert('wrong password dummie')
+      }
+    } catch (error) {
+      alert('login failed')
     }
   }
 

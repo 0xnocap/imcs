@@ -7,11 +7,11 @@ import { supabase } from '@/lib/supabase'
  */
 export async function GET() {
   try {
-    // Get all submissions with their current scores
+    // Get all submissions with their current scores, ordered by score descending
     const { data: submissions, error } = await supabase
       .from('leaderboard_submissions')
       .select('id, wallet_address, name, info, score')
-      .order('id')
+      .order('score', { ascending: false })
 
     if (error) {
       console.error('Error fetching submissions:', error)
@@ -28,9 +28,15 @@ export async function GET() {
       )
     }
 
-    // Return a random submission
-    const randomIndex = Math.floor(Math.random() * submissions.length)
-    const randomSubmission = submissions[randomIndex]
+    // Add rank to each submission based on score order
+    const submissionsWithRank = submissions.map((sub, index) => ({
+      ...sub,
+      rank: index + 1
+    }))
+
+    // Return a random submission with its rank
+    const randomIndex = Math.floor(Math.random() * submissionsWithRank.length)
+    const randomSubmission = submissionsWithRank[randomIndex]
 
     return NextResponse.json(randomSubmission)
   } catch (error) {
