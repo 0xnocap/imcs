@@ -228,10 +228,9 @@ export default function VotingCard({ submission, onVote, onSkip }: VotingCardPro
         {/* Content */}
         <div style={{ position: 'relative', zIndex: 2 }}>
           <div style={{
-            fontFamily: 'Comic Neue, cursive',
-            fontSize: 'clamp(18px, 5vw, 24px)',
+            fontSize: 'clamp(16px, 4.5vw, 22px)',
             color: '#fff',
-            WebkitTextStroke: '1px #000',
+            WebkitTextStroke: '0.5px #000',
             paintOrder: 'stroke fill',
             lineHeight: 1.4,
             marginBottom: '20px',
@@ -240,7 +239,7 @@ export default function VotingCard({ submission, onVote, onSkip }: VotingCardPro
             alignItems: 'center',
             textAlign: 'center',
             justifyContent: 'center',
-            fontWeight: 700
+            fontWeight: 600
           }}>
             &quot;{submission.info}&quot;
           </div>
@@ -262,8 +261,8 @@ export default function VotingCard({ submission, onVote, onSkip }: VotingCardPro
             </div>
             <div style={{
               fontFamily: 'monospace',
-              fontSize: 'clamp(9px, 2.5vw, 11px)',
-              color: '#666'
+              fontSize: 'clamp(10px, 2.5vw, 12px)',
+              color: '#333'
             }}>
               {truncateAddress(submission.wallet_address)}
             </div>

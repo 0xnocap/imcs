@@ -135,7 +135,6 @@ export default function LeaderboardPage() {
             placeholder="search wallet..."
             style={{
               flex: 1,
-              fontFamily: 'Comic Neue, cursive',
               fontSize: '15px',
               padding: '10px 14px',
               border: '3px solid #000',
@@ -177,7 +176,7 @@ export default function LeaderboardPage() {
             }}
           >
             <h3 style={{ marginBottom: '8px', fontFamily: 'Comic Neue, cursive' }}>found em!</h3>
-            <div style={{ fontFamily: 'Comic Neue, cursive', fontSize: '14px' }}>
+            <div style={{ fontSize: '14px' }}>
               <div><strong>name:</strong> {searchResult.name}</div>
               <div><strong>score:</strong> {searchResult.submission_score ?? searchResult.score}</div>
               <div><strong>info:</strong> {searchResult.info}</div>
@@ -247,18 +246,15 @@ export default function LeaderboardPage() {
                         fontFamily: 'Comic Neue, cursive',
                         fontSize: '18px',
                         fontWeight: 'bold',
-                        color: '#fff',
-                        textShadow: '2px 2px 0 #000',
+                        color: '#000',
                         display: 'block'
                       }}>
                         #{rank}
                       </span>
                       <span style={{
-                        fontFamily: 'Comic Neue, cursive',
                         fontSize: '14px',
                         fontWeight: 'bold',
-                        color: '#ff00ff',
-                        textShadow: '1px 1px 0 rgba(0,0,0,0.3)'
+                        color: '#000'
                       }}>
                         {sub.score} pts
                       </span>
@@ -285,7 +281,6 @@ export default function LeaderboardPage() {
                         </span>
                       </div>
                       <div style={{
-                        fontFamily: 'Comic Neue, cursive',
                         fontSize: '14px',
                         color: '#000',
                         lineHeight: 1.4
