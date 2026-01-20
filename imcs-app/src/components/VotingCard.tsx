@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
+import { motion, useMotionValue, useTransform, animate } from 'framer-motion'
 import { truncateAddress } from '@/lib/utils'
 
 type Submission = {
@@ -15,150 +16,341 @@ type VotingCardProps = {
   submission: Submission
   onVote: (voteType: 'upvote' | 'downvote') => void
   onSkip: () => void
-  loading?: boolean
 }
 
-export default function VotingCard({ submission, onVote, onSkip, loading }: VotingCardProps) {
-  const [voting, setVoting] = useState(false)
-  const [voteType, setVoteType] = useState<'upvote' | 'downvote' | null>(null)
+export default function VotingCard({ submission, onVote, onSkip }: VotingCardProps) {
+  const [hasVoted, setHasVoted] = useState(false)
+  const constraintsRef = useRef(null)
 
-  const handleVote = async (type: 'upvote' | 'downvote') => {
-    setVoting(true)
-    setVoteType(type)
-    await onVote(type)
-    setVoting(false)
+  const x = useMotionValue(0)
+  const rotate = useTransform(x, [-200, 200], [-25, 25])
+  const opacity = useTransform(x, [-300, -100, 0, 100, 300], [0, 1, 1, 1, 0])
+  const greenOpacity = useTransform(x, [0, 150], [0, 0.8])
+  const redOpacity = useTransform(x, [-150, 0], [0.8, 0])
+
+  const gradients = [
+    'linear-gradient(135deg, #ff6b9d, #ffd700)',
+    'linear-gradient(135deg, #00ff87, #60efff)',
+    'linear-gradient(135deg, #ff00ff, #00bfff)',
+    'linear-gradient(135deg, #ffd700, #ff6b9d)',
+    'linear-gradient(135deg, #ff6347, #ffd700)',
+  ]
+  const [gradient] = useState(() => gradients[Math.floor(Math.random() * gradients.length)])
+
+  const floatingEmojis = ['✨', '⭐', '💫', '🔥', '💀', '🚀', '🧠', '💸', '👀', '⚡', '🤑', '🌟', '💎', '🦧']
+
+  const handleDragEnd = (_: any, info: { offset: { x: number }, velocity: { x: number } }) => {
+    if (hasVoted) return
+
+    const swipeThreshold = 100
+    const velocityThreshold = 500
+
+    if (info.offset.x > swipeThreshold || info.velocity.x > velocityThreshold) {
+      flyAway('upvote', 1)
+    } else if (info.offset.x < -swipeThreshold || info.velocity.x < -velocityThreshold) {
+      flyAway('downvote', -1)
+    }
+  }
+
+  const flyAway = (type: 'upvote' | 'downvote', direction: number) => {
+    if (hasVoted) return
+    setHasVoted(true)
+
+    // Animate card flying off screen
+    animate(x, direction * 500, {
+      duration: 0.3,
+      ease: 'easeOut',
+      onComplete: () => {
+        onVote(type)
+      }
+    })
+  }
+
+  const handleButtonVote = (type: 'upvote' | 'downvote') => {
+    if (hasVoted) return
+    flyAway(type, type === 'upvote' ? 1 : -1)
   }
 
   return (
-    <div className="voting-card-wrapper">
-      <div className="voting-card" style={{
-        transform: `rotate(${Math.random() * 4 - 2}deg)`,
-        background: 'linear-gradient(135deg, #ff6b9d, #ffd700)',
-        border: '5px solid #000',
-        padding: '40px',
-        boxShadow: '10px 10px 0 #000',
-        maxWidth: '600px',
-        margin: '50px auto',
-        position: 'relative'
-      }}>
-        {/* Submission text */}
-        <div style={{
-          fontSize: '24px',
-          lineHeight: '1.4',
-          marginBottom: '25px',
-          color: '#fff',
-          textShadow: '2px 2px 0 #000',
-          minHeight: '100px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          textAlign: 'center'
-        }}>
-          "{submission.info}"
-        </div>
+    <div
+      ref={constraintsRef}
+      style={{
+        position: 'relative',
+        touchAction: 'none',
+        maxWidth: '550px',
+        margin: '0 auto',
+        padding: '0 20px'
+      }}
+    >
+      {/* Floating background emojis */}
+      {floatingEmojis.map((emoji, i) => (
+        <motion.div
+          key={i}
+          style={{
+            position: 'absolute',
+            fontSize: `${20 + (i % 3) * 8}px`,
+            top: `${5 + (i * 7) % 85}%`,
+            left: i % 2 === 0 ? `calc(-40px - ${(i % 4) * 15}px)` : 'auto',
+            right: i % 2 === 1 ? `calc(-40px - ${(i % 4) * 15}px)` : 'auto',
+            zIndex: 0,
+            pointerEvents: 'none',
+            opacity: 0.9
+          }}
+          animate={{
+            y: [0, -15 - (i % 3) * 10, 0],
+            rotate: [0, 10 + i * 2, -10 - i * 2, 0],
+            scale: [1, 1.1, 1]
+          }}
+          transition={{
+            duration: 2 + (i % 5) * 0.4,
+            repeat: Infinity,
+            ease: 'easeInOut',
+            delay: i * 0.15
+          }}
+        >
+          {emoji}
+        </motion.div>
+      ))}
 
-        {/* Wallet address */}
+      {/* Main card */}
+      <motion.div
+        initial={{ scale: 0.95, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ duration: 0.2 }}
+        drag={!hasVoted ? "x" : false}
+        dragConstraints={{ left: 0, right: 0 }}
+        dragElastic={0.9}
+        onDragEnd={handleDragEnd}
+        style={{
+          x,
+          rotate,
+          opacity,
+          background: gradient,
+          border: '5px solid #000',
+          borderRadius: '20px',
+          padding: '30px',
+          boxShadow: '10px 10px 0 #000',
+          position: 'relative',
+          cursor: hasVoted ? 'default' : 'grab',
+          overflow: 'visible',
+          zIndex: 1
+        }}
+        whileTap={{ cursor: hasVoted ? 'default' : 'grabbing' }}
+      >
+        {/* Green overlay (swipe right) */}
+        <motion.div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background: '#00ff00',
+            opacity: greenOpacity,
+            borderRadius: '15px',
+            pointerEvents: 'none'
+          }}
+        />
+
+        {/* Red overlay (swipe left) */}
+        <motion.div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background: '#ff0000',
+            opacity: redOpacity,
+            borderRadius: '15px',
+            pointerEvents: 'none'
+          }}
+        />
+
+        {/* Upvote emoji indicator */}
+        <motion.div
+          style={{
+            position: 'absolute',
+            top: '50%',
+            right: '20px',
+            transform: 'translateY(-50%)',
+            fontSize: '60px',
+            opacity: greenOpacity,
+            pointerEvents: 'none'
+          }}
+        >
+          👍
+        </motion.div>
+
+        {/* Downvote emoji indicator */}
+        <motion.div
+          style={{
+            position: 'absolute',
+            top: '50%',
+            left: '20px',
+            transform: 'translateY(-50%)',
+            fontSize: '60px',
+            opacity: redOpacity,
+            pointerEvents: 'none'
+          }}
+        >
+          👎
+        </motion.div>
+
+        {/* Rank badge */}
         <div style={{
-          fontSize: '16px',
-          color: '#000',
-          fontFamily: 'monospace',
+          position: 'absolute',
+          top: '-12px',
+          right: '-12px',
+          background: '#ffff00',
+          padding: '4px 10px',
+          borderRadius: '8px',
+          border: '3px solid #000',
+          boxShadow: '2px 2px 0 #000',
+          transform: 'rotate(5deg)',
           textAlign: 'center',
-          marginBottom: '30px',
-          background: 'rgba(255, 255, 255, 0.7)',
-          padding: '8px',
-          borderRadius: '4px',
-          border: '2px solid #000'
+          zIndex: 10
         }}>
-          - {truncateAddress(submission.wallet_address)}
+          <div style={{
+            fontFamily: 'Comic Neue, cursive',
+            fontSize: '9px',
+            color: '#333',
+            lineHeight: 1
+          }}>
+            savant raank
+          </div>
+          <div style={{
+            fontFamily: 'Comic Neue, cursive',
+            fontSize: '18px',
+            fontWeight: 'bold',
+            color: '#000',
+            lineHeight: 1
+          }}>
+            #{submission.score}
+          </div>
         </div>
 
-        {/* Vote buttons */}
-        <div style={{
-          display: 'flex',
-          gap: '20px',
-          justifyContent: 'center'
-        }}>
-          <button
-            onClick={() => handleVote('upvote')}
-            disabled={voting || loading}
-            style={{
-              fontFamily: 'Comic Neue, cursive',
-              fontSize: '48px',
-              padding: '15px 30px',
-              background: '#00ff00',
-              border: '4px solid #000',
-              cursor: voting || loading ? 'wait' : 'pointer',
-              boxShadow: '5px 5px 0 #000',
-              transition: 'all 0.1s',
-              opacity: voting && voteType !== 'upvote' ? 0.5 : 1,
-              transform: voting && voteType === 'upvote' ? 'scale(1.1)' : 'scale(1)'
-            }}
-            onMouseDown={(e) => {
-              if (!voting && !loading) {
-                e.currentTarget.style.transform = 'scale(0.95)'
-                e.currentTarget.style.boxShadow = '2px 2px 0 #000'
-              }
-            }}
-            onMouseUp={(e) => {
-              if (!voting && !loading) {
-                e.currentTarget.style.transform = 'scale(1)'
-                e.currentTarget.style.boxShadow = '5px 5px 0 #000'
-              }
-            }}
-          >
-            👍
-          </button>
+        {/* Content */}
+        <div style={{ position: 'relative', zIndex: 2 }}>
+          <div style={{
+            fontFamily: 'Comic Neue, cursive',
+            fontSize: '24px',
+            color: '#fff',
+            textShadow: '2px 2px 0 #000',
+            lineHeight: 1.4,
+            marginBottom: '20px',
+            minHeight: '80px',
+            display: 'flex',
+            alignItems: 'center',
+            textAlign: 'center',
+            justifyContent: 'center'
+          }}>
+            &quot;{submission.info}&quot;
+          </div>
 
-          <button
-            onClick={() => handleVote('downvote')}
-            disabled={voting || loading}
-            style={{
-              fontFamily: 'Comic Neue, cursive',
-              fontSize: '48px',
-              padding: '15px 30px',
-              background: '#ff0000',
-              border: '4px solid #000',
-              cursor: voting || loading ? 'wait' : 'pointer',
-              boxShadow: '5px 5px 0 #000',
-              transition: 'all 0.1s',
-              opacity: voting && voteType !== 'downvote' ? 0.5 : 1,
-              transform: voting && voteType === 'downvote' ? 'scale(1.1)' : 'scale(1)'
-            }}
-            onMouseDown={(e) => {
-              if (!voting && !loading) {
-                e.currentTarget.style.transform = 'scale(0.95)'
-                e.currentTarget.style.boxShadow = '2px 2px 0 #000'
-              }
-            }}
-            onMouseUp={(e) => {
-              if (!voting && !loading) {
-                e.currentTarget.style.transform = 'scale(1)'
-                e.currentTarget.style.boxShadow = '5px 5px 0 #000'
-              }
-            }}
-          >
-            👎
-          </button>
-        </div>
-
-        {/* Skip button */}
-        <div style={{ marginTop: '20px', textAlign: 'center' }}>
-          <button
-            onClick={onSkip}
-            disabled={voting || loading}
-            style={{
+          <div style={{
+            background: 'rgba(255,255,255,0.9)',
+            padding: '10px 16px',
+            borderRadius: '12px',
+            border: '3px solid #000',
+            boxShadow: '3px 3px 0 #000'
+          }}>
+            <div style={{
               fontFamily: 'Comic Neue, cursive',
               fontSize: '18px',
-              padding: '10px 20px',
-              background: '#ccc',
-              border: '3px solid #000',
-              cursor: voting || loading ? 'wait' : 'pointer',
-              boxShadow: '3px 3px 0 #000'
-            }}
-          >
-            skip dis one
-          </button>
+              fontWeight: 'bold',
+              color: '#000'
+            }}>
+              {submission.name}
+            </div>
+            <div style={{
+              fontFamily: 'monospace',
+              fontSize: '11px',
+              color: '#666'
+            }}>
+              {truncateAddress(submission.wallet_address)}
+            </div>
+          </div>
         </div>
+      </motion.div>
+
+      {/* Vote buttons */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        gap: '40px',
+        marginTop: '25px'
+      }}>
+        <motion.button
+          onClick={() => handleButtonVote('downvote')}
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
+          disabled={hasVoted}
+          style={{
+            width: '70px',
+            height: '70px',
+            borderRadius: '50%',
+            background: '#ff4444',
+            border: '4px solid #000',
+            fontSize: '35px',
+            cursor: hasVoted ? 'default' : 'pointer',
+            boxShadow: '4px 4px 0 #000',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            opacity: hasVoted ? 0.5 : 1
+          }}
+        >
+          👎
+        </motion.button>
+
+        <motion.button
+          onClick={onSkip}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          disabled={hasVoted}
+          style={{
+            padding: '10px 20px',
+            borderRadius: '25px',
+            background: '#888',
+            border: '3px solid #000',
+            fontFamily: 'Comic Neue, cursive',
+            fontSize: '16px',
+            cursor: hasVoted ? 'default' : 'pointer',
+            boxShadow: '3px 3px 0 #000',
+            alignSelf: 'center',
+            opacity: hasVoted ? 0.5 : 1
+          }}
+        >
+          meh
+        </motion.button>
+
+        <motion.button
+          onClick={() => handleButtonVote('upvote')}
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
+          disabled={hasVoted}
+          style={{
+            width: '70px',
+            height: '70px',
+            borderRadius: '50%',
+            background: '#00ff00',
+            border: '4px solid #000',
+            fontSize: '35px',
+            cursor: hasVoted ? 'default' : 'pointer',
+            boxShadow: '4px 4px 0 #000',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            opacity: hasVoted ? 0.5 : 1
+          }}
+        >
+          👍
+        </motion.button>
+      </div>
+
+      <div style={{
+        textAlign: 'center',
+        marginTop: '15px',
+        fontFamily: 'Comic Neue, cursive',
+        fontSize: '14px',
+        color: '#888'
+      }}>
+        swipe or tap 2 vote
       </div>
     </div>
   )

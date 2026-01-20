@@ -155,7 +155,7 @@ export default function SubmitPage() {
         </button>
 
         <button
-          onClick={() => setStage('choose-action')}
+          onClick={() => setStage('initial')}
           style={{
             width: '100%',
             fontFamily: 'Comic Neue, cursive',

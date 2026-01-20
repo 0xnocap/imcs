@@ -143,7 +143,7 @@ export default function TypingTest({ onSuccess }: TypingTestProps) {
         textAlign: 'center',
         fontFamily: 'monospace'
       }}>
-        HACKER TEST ACTIVATED
+        IMCS TYPEEN TEHST ACTUHVAYTID
       </div>
 
       {/* Message */}

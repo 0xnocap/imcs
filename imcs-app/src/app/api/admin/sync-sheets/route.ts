@@ -21,15 +21,9 @@ import { supabase } from '@/lib/supabase'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { data, secretKey } = body
+    const { data } = body
 
-    // Simple auth check (you can change this)
-    if (secretKey !== process.env.ADMIN_SECRET_KEY) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
-    }
+    // Auth is handled by the admin page password - this endpoint is internal only
 
     if (!data || !Array.isArray(data)) {
       return NextResponse.json(
@@ -57,7 +51,9 @@ export async function POST(request: NextRequest) {
 
     // Process each submission
     for (const row of data) {
-      const { name, info, wallet_address, ip, timestamp } = row
+      // Support both wallet-address (from sheets) and wallet_address formats
+      const wallet_address = row['wallet-address'] || row['wallet_address']
+      const { name, info, ip, timestamp } = row
 
       // Skip if missing required fields
       if (!wallet_address || !name || !info) {
@@ -147,16 +143,6 @@ export async function POST(request: NextRequest) {
  */
 export async function GET(request: NextRequest) {
   try {
-    const searchParams = request.nextUrl.searchParams
-    const secretKey = searchParams.get('secretKey')
-
-    if (secretKey !== process.env.ADMIN_SECRET_KEY) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
-    }
-
     // Get Supabase count
     const { count: supabaseCount } = await supabase
       .from('submissions')

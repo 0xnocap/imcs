@@ -69,13 +69,20 @@ export default function SiteLayout({ children }: { children: ReactNode }) {
     if (!nav) return
 
     const navRect = nav.getBoundingClientRect()
+    const btn = document.querySelector(`[data-btn-id="${draggedBtn}"]`) as HTMLElement
+    const btnWidth = btn?.offsetWidth || 120
+    const btnHeight = btn?.offsetHeight || 40
+
+    let newX = e.clientX - navRect.left - dragOffset.x
+    let newY = e.clientY - navRect.top - dragOffset.y
+
+    // Constrain to nav boundaries
+    newX = Math.max(0, Math.min(newX, navRect.width - btnWidth))
+    newY = Math.max(0, Math.min(newY, navRect.height - btnHeight))
 
     setPositions(prev => ({
       ...prev,
-      [draggedBtn]: {
-        x: e.clientX - navRect.left - dragOffset.x,
-        y: e.clientY - navRect.top - dragOffset.y
-      }
+      [draggedBtn]: { x: newX, y: newY }
     }))
   }
 
@@ -112,6 +119,7 @@ export default function SiteLayout({ children }: { children: ReactNode }) {
           return (
             <button
               key={btn.id}
+              data-btn-id={btn.id}
               className={`nav-btn ${isActive ? 'active' : ''} ${draggedBtn === btn.id ? 'dragging' : ''}`}
               style={{
                 left: `${pos.x}px`,
@@ -134,14 +142,16 @@ export default function SiteLayout({ children }: { children: ReactNode }) {
       </nav>
 
       {/* Content */}
-      <div id="content">
-        {children}
-      </div>
+      <div id="content" style={{ display: 'flex', flexDirection: 'column' }}>
+        <div style={{ flex: 1 }}>
+          {children}
+        </div>
 
-      {/* Footer Marquee */}
-      <div className="marquee">
-        <div className="marquee-content">
-          ✨ walcum to imcs magic ralm! cliq for surprises anywar! we pramis to onli tek ur mani ✨
+        {/* Footer Marquee */}
+        <div className="marquee">
+          <div className="marquee-content">
+            ✨ walcum to imcs magic ralm! cliq for surprises anywar! we pramis to onli tek ur mani ✨
+          </div>
         </div>
       </div>
 

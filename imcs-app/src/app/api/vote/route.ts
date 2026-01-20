@@ -5,7 +5,11 @@ import { calculateVoteWeight, getVoteResponse } from '@/lib/utils'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { submissionId, voteType, voterWallet, voterIP } = body
+    // Support both naming conventions (submission_id or submissionId, etc.)
+    const submissionId = body.submission_id || body.submissionId
+    const voteType = body.vote_type || body.voteType
+    const voterWallet = body.voter_wallet || body.voterWallet
+    const voterIdentifier = body.voter_identifier || body.voterIP || voterWallet
 
     // Validation
     if (!submissionId || !voteType) {
@@ -21,9 +25,6 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
-
-    // Determine voter identifier (wallet takes priority over IP)
-    const voterIdentifier = voterWallet || voterIP
     if (!voterIdentifier) {
       return NextResponse.json(
         { error: 'need wallet or IP to vote' },

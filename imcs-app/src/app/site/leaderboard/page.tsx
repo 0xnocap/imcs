@@ -1,12 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { motion } from 'framer-motion'
 import { truncateAddress } from '@/lib/utils'
 
-type Tab = 'submissions' | 'voters'
-
 type Submission = {
-  rank: number
   wallet_address: string
   name: string
   info: string
@@ -14,22 +12,43 @@ type Submission = {
   whitelist_status: string | null
 }
 
-type Voter = {
-  rank: number
-  wallet_address: string
-  karma_score: number
-  votes_cast: number
-  weighted_votes: number
-  whitelist_status: string | null
+const getMedalEmoji = (rank: number) => {
+  if (rank === 1) return '🥇'
+  if (rank === 2) return '🥈'
+  if (rank === 3) return '🥉'
+  return null
+}
+
+const getRandomRotation = (i: number) => {
+  const rotations = [-2, 1.5, -1, 2, -1.5, 0.5, -0.5]
+  return rotations[i % rotations.length]
+}
+
+const getRandomGradient = (i: number) => {
+  const gradients = [
+    'linear-gradient(135deg, #ff6b9d, #ffd700)',
+    'linear-gradient(135deg, #00ff87, #60efff)',
+    'linear-gradient(135deg, #ff00ff, #00bfff)',
+    'linear-gradient(135deg, #ffd700, #ff6347)',
+    'linear-gradient(135deg, #7b68ee, #ff6b9d)',
+    'linear-gradient(135deg, #00ffff, #ff00ff)',
+    'linear-gradient(135deg, #ffff00, #00ff00)',
+  ]
+  return gradients[i % gradients.length]
+}
+
+const getGlowColor = (rank: number) => {
+  if (rank === 1) return '#ffd700' // Gold
+  if (rank === 2) return '#c0c0c0' // Silver
+  if (rank === 3) return '#cd7f32' // Bronze
+  return null
 }
 
 export default function LeaderboardPage() {
-  const [tab, setTab] = useState<Tab>('submissions')
   const [submissions, setSubmissions] = useState<Submission[]>([])
-  const [voters, setVoters] = useState<Voter[]>([])
   const [loading, setLoading] = useState(true)
   const [searchWallet, setSearchWallet] = useState('')
-  const [searchResult, setSearchResult] = useState<Submission | Voter | null>(null)
+  const [searchResult, setSearchResult] = useState<Submission | null>(null)
 
   useEffect(() => {
     loadData()
@@ -37,31 +56,19 @@ export default function LeaderboardPage() {
     // Auto-refresh every 30 seconds
     const interval = setInterval(loadData, 30000)
     return () => clearInterval(interval)
-  }, [tab])
+  }, [])
 
   const loadData = async () => {
     setLoading(true)
 
-    if (tab === 'submissions') {
-      try {
-        const response = await fetch('/api/leaderboard/submissions')
-        if (response.ok) {
-          const data = await response.json()
-          setSubmissions(data)
-        }
-      } catch (error) {
-        console.error('Error loading submissions:', error)
+    try {
+      const response = await fetch('/api/leaderboard/submissions')
+      if (response.ok) {
+        const data = await response.json()
+        setSubmissions(data)
       }
-    } else {
-      try {
-        const response = await fetch('/api/leaderboard/voters')
-        if (response.ok) {
-          const data = await response.json()
-          setVoters(data)
-        }
-      } catch (error) {
-        console.error('Error loading voters:', error)
-      }
+    } catch (error) {
+      console.error('Error loading submissions:', error)
     }
 
     setLoading(false)
@@ -71,407 +78,209 @@ export default function LeaderboardPage() {
     if (!searchWallet.trim()) return
 
     try {
-      if (tab === 'submissions') {
-        const response = await fetch(`/api/profile/${searchWallet}`)
-        if (response.ok) {
-          const data = await response.json()
-          setSearchResult(data)
-        } else {
-          setSearchResult(null)
-          alert('wallet not found')
-        }
+      const response = await fetch(`/api/profile/${searchWallet}`)
+      if (response.ok) {
+        const data = await response.json()
+        setSearchResult(data)
       } else {
-        // Search in voters list
-        const found = voters.find(v => v.wallet_address.toLowerCase() === searchWallet.toLowerCase())
-        if (found) {
-          setSearchResult(found)
-        } else {
-          setSearchResult(null)
-          alert('wallet not found in voters')
-        }
+        setSearchResult(null)
+        alert('wallet not found')
       }
     } catch (error) {
       console.error('Search error:', error)
     }
   }
 
-  const getPodiumColor = (rank: number): string => {
-    if (rank === 1) return '#ffd700' // Gold
-    if (rank === 2) return '#c0c0c0' // Silver
-    if (rank === 3) return '#cd7f32' // Bronze
-    return '#fff'
-  }
-
-  const renderSubmissionsPodium = () => {
-    const topThree = submissions.slice(0, 3)
-
-    return (
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'flex-end',
-        gap: '20px',
-        marginBottom: '40px',
-        padding: '20px'
-      }}>
-        {/* 2nd place */}
-        {topThree[1] && (
-          <div style={{
-            textAlign: 'center',
-            order: 1
-          }}>
-            <div style={{
-              background: getPodiumColor(2),
-              border: '5px solid #000',
-              padding: '20px',
-              boxShadow: '8px 8px 0 #000',
-              minWidth: '200px',
-              height: '200px',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center'
-            }}>
-              <div style={{ fontSize: '48px' }}>🥈</div>
-              <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#000' }}>
-                {topThree[1].name}
-              </div>
-              <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#ff00ff', textShadow: '2px 2px 0 #000' }}>
-                {topThree[1].score}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* 1st place - tallest */}
-        {topThree[0] && (
-          <div style={{
-            textAlign: 'center',
-            order: 2
-          }}>
-            <div style={{
-              background: getPodiumColor(1),
-              border: '5px solid #000',
-              padding: '20px',
-              boxShadow: '10px 10px 0 #000',
-              minWidth: '220px',
-              height: '280px',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center'
-            }}>
-              <div style={{ fontSize: '64px' }}>👑</div>
-              <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#000' }}>
-                {topThree[0].name}
-              </div>
-              <div style={{ fontSize: '42px', fontWeight: 'bold', color: '#ff00ff', textShadow: '3px 3px 0 #000' }}>
-                {topThree[0].score}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* 3rd place */}
-        {topThree[2] && (
-          <div style={{
-            textAlign: 'center',
-            order: 3
-          }}>
-            <div style={{
-              background: getPodiumColor(3),
-              border: '5px solid #000',
-              padding: '20px',
-              boxShadow: '7px 7px 0 #000',
-              minWidth: '180px',
-              height: '160px',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center'
-            }}>
-              <div style={{ fontSize: '42px' }}>🥉</div>
-              <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#000' }}>
-                {topThree[2].name}
-              </div>
-              <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#ff00ff', textShadow: '2px 2px 0 #000' }}>
-                {topThree[2].score}
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    )
-  }
-
-  const renderSubmissionsList = () => {
-    const remaining = submissions.slice(3)
-
-    return remaining.map((sub) => (
-      <div
-        key={sub.wallet_address}
-        className="leaderboard-entry"
-        style={{
-          background: sub.whitelist_status === 'approved' ? '#d4edda' : '#fff',
-        }}
-      >
-        <div className="leaderboard-rank">#{sub.rank}</div>
-        <div className="leaderboard-content">
-          <div style={{ fontSize: '20px', fontWeight: 'bold', marginBottom: '5px' }}>
-            {sub.name}
-          </div>
-          <div style={{ fontSize: '16px', color: '#666', marginBottom: '8px' }}>
-            {sub.info.length > 100 ? sub.info.substring(0, 100) + '...' : sub.info}
-          </div>
-          <div style={{ fontSize: '14px', color: '#999', fontFamily: 'monospace' }}>
-            {truncateAddress(sub.wallet_address)}
-          </div>
-        </div>
-        <div className="leaderboard-score">{sub.score}</div>
-      </div>
-    ))
-  }
-
-  const renderVotersPodium = () => {
-    const topThree = voters.slice(0, 3)
-
-    return (
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'flex-end',
-        gap: '20px',
-        marginBottom: '40px',
-        padding: '20px'
-      }}>
-        {/* 2nd place */}
-        {topThree[1] && (
-          <div style={{
-            textAlign: 'center',
-            order: 1
-          }}>
-            <div style={{
-              background: getPodiumColor(2),
-              border: '5px solid #000',
-              padding: '20px',
-              boxShadow: '8px 8px 0 #000',
-              minWidth: '200px',
-              height: '200px',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center'
-            }}>
-              <div style={{ fontSize: '48px' }}>🥈</div>
-              <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#000', fontFamily: 'monospace' }}>
-                {truncateAddress(topThree[1].wallet_address)}
-              </div>
-              <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#00ff00', textShadow: '2px 2px 0 #000' }}>
-                {topThree[1].karma_score}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* 1st place */}
-        {topThree[0] && (
-          <div style={{
-            textAlign: 'center',
-            order: 2
-          }}>
-            <div style={{
-              background: getPodiumColor(1),
-              border: '5px solid #000',
-              padding: '20px',
-              boxShadow: '10px 10px 0 #000',
-              minWidth: '220px',
-              height: '280px',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center'
-            }}>
-              <div style={{ fontSize: '64px' }}>👑</div>
-              <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#000', fontFamily: 'monospace' }}>
-                {truncateAddress(topThree[0].wallet_address)}
-              </div>
-              <div style={{ fontSize: '42px', fontWeight: 'bold', color: '#00ff00', textShadow: '3px 3px 0 #000' }}>
-                {topThree[0].karma_score}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* 3rd place */}
-        {topThree[2] && (
-          <div style={{
-            textAlign: 'center',
-            order: 3
-          }}>
-            <div style={{
-              background: getPodiumColor(3),
-              border: '5px solid #000',
-              padding: '20px',
-              boxShadow: '7px 7px 0 #000',
-              minWidth: '180px',
-              height: '160px',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center'
-            }}>
-              <div style={{ fontSize: '42px' }}>🥉</div>
-              <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#000', fontFamily: 'monospace' }}>
-                {truncateAddress(topThree[2].wallet_address)}
-              </div>
-              <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#00ff00', textShadow: '2px 2px 0 #000' }}>
-                {topThree[2].karma_score}
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    )
-  }
-
-  const renderVotersList = () => {
-    const remaining = voters.slice(3)
-
-    return remaining.map((voter) => (
-      <div
-        key={voter.wallet_address}
-        className="leaderboard-entry"
-        style={{
-          background: voter.whitelist_status === 'approved' ? '#d4edda' : '#fff',
-        }}
-      >
-        <div className="leaderboard-rank">#{voter.rank}</div>
-        <div className="leaderboard-content">
-          <div style={{ fontSize: '18px', fontWeight: 'bold', fontFamily: 'monospace', marginBottom: '5px' }}>
-            {truncateAddress(voter.wallet_address)}
-          </div>
-          <div style={{ fontSize: '14px', color: '#666' }}>
-            {voter.votes_cast} votes cast · {voter.weighted_votes.toFixed(2)} weighted
-          </div>
-        </div>
-        <div className="leaderboard-score" style={{ color: '#00ff00' }}>{voter.karma_score}</div>
-      </div>
-    ))
-  }
-
   return (
     <div className="page active">
-      <div className="leaderboard-container">
-        {/* Title */}
-        <h1 style={{
-          fontSize: '56px',
-          textAlign: 'center',
-          color: '#fff',
-          textShadow: '4px 4px 0 #000',
-          marginBottom: '10px'
-        }}>
+      <div style={{ maxWidth: '750px', margin: '0 auto', padding: '0 15px' }}>
+        {/* Title - chaotic */}
+        <motion.h1
+          animate={{ rotate: [0, -1, 1, 0] }}
+          transition={{ duration: 2, repeat: Infinity }}
+          style={{
+            fontSize: '46px',
+            textAlign: 'center',
+            color: '#fff',
+            textShadow: '4px 4px 0 #ff00ff, -2px -2px 0 #00ffff',
+            marginBottom: '5px',
+            fontFamily: 'Comic Neue, cursive'
+          }}
+        >
           leederbord
-        </h1>
+        </motion.h1>
         <p style={{
-          fontSize: '20px',
+          fontSize: '18px',
           textAlign: 'center',
-          color: '#fff',
-          textShadow: '2px 2px 0 #000',
-          marginBottom: '30px'
+          color: '#ffff00',
+          marginBottom: '20px',
+          fontFamily: 'Comic Neue, cursive',
+          textShadow: '2px 2px 0 #000'
         }}>
-          who da best savants?
+          who da best savants???
         </p>
 
-        {/* Tabs */}
-        <div className="leaderboard-tabs">
-          <button
-            className={`leaderboard-tab ${tab === 'submissions' ? 'active' : ''}`}
-            onClick={() => setTab('submissions')}
-          >
-            best submishuns
-          </button>
-          <button
-            className={`leaderboard-tab ${tab === 'voters' ? 'active' : ''}`}
-            onClick={() => setTab('voters')}
-          >
-            best voters
-          </button>
-        </div>
-
         {/* Search */}
-        <div style={{
-          maxWidth: '600px',
-          margin: '0 auto 30px',
-          display: 'flex',
-          gap: '10px'
-        }}>
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '25px', transform: 'rotate(-0.5deg)' }}>
           <input
             type="text"
             value={searchWallet}
             onChange={(e) => setSearchWallet(e.target.value)}
-            placeholder="search by wallet address..."
+            placeholder="search wallet..."
             style={{
               flex: 1,
               fontFamily: 'Comic Neue, cursive',
-              fontSize: '18px',
-              padding: '12px',
+              fontSize: '15px',
+              padding: '10px 14px',
               border: '3px solid #000',
-              background: '#fff'
+              background: '#fff',
+              boxShadow: '3px 3px 0 #000'
             }}
           />
-          <button
+          <motion.button
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9, rotate: 10 }}
             onClick={handleSearch}
             style={{
               fontFamily: 'Comic Neue, cursive',
-              fontSize: '18px',
-              padding: '12px 24px',
+              fontSize: '15px',
+              padding: '10px 18px',
               background: '#ffff00',
               border: '3px solid #000',
               cursor: 'pointer',
-              boxShadow: '3px 3px 0 #000'
+              boxShadow: '3px 3px 0 #000',
+              fontWeight: 'bold'
             }}
           >
-            search
-          </button>
+            go!
+          </motion.button>
         </div>
 
         {/* Search result */}
         {searchResult && (
-          <div style={{
-            maxWidth: '800px',
-            margin: '0 auto 30px',
-            padding: '20px',
-            background: '#d4edda',
-            border: '5px solid #000',
-            boxShadow: '8px 8px 0 #000'
-          }}>
-            <h3 style={{ marginBottom: '10px' }}>Search Result:</h3>
-            {tab === 'submissions' && 'info' in searchResult && (
-              <>
-                <div><strong>Name:</strong> {searchResult.name}</div>
-                <div><strong>Rank:</strong> #{searchResult.rank}</div>
-                <div><strong>Score:</strong> {searchResult.score}</div>
-                <div><strong>Info:</strong> {searchResult.info}</div>
-              </>
-            )}
-            {tab === 'voters' && 'votes_cast' in searchResult && (
-              <>
-                <div><strong>Rank:</strong> #{searchResult.rank}</div>
-                <div><strong>Karma:</strong> {searchResult.karma_score}</div>
-                <div><strong>Votes Cast:</strong> {searchResult.votes_cast}</div>
-              </>
-            )}
-          </div>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            style={{
+              marginBottom: '25px',
+              padding: '15px',
+              background: 'linear-gradient(135deg, #d4edda, #c3e6cb)',
+              border: '3px solid #000',
+              boxShadow: '5px 5px 0 #000',
+              transform: 'rotate(0.5deg)'
+            }}
+          >
+            <h3 style={{ marginBottom: '8px', fontFamily: 'Comic Neue, cursive' }}>found em!</h3>
+            <div style={{ fontFamily: 'Comic Neue, cursive', fontSize: '14px' }}>
+              <div><strong>name:</strong> {searchResult.name}</div>
+              <div><strong>score:</strong> {searchResult.score}</div>
+              <div><strong>info:</strong> {searchResult.info}</div>
+            </div>
+          </motion.div>
         )}
 
         {loading ? (
-          <div style={{ textAlign: 'center', fontSize: '36px', padding: '50px' }}>
-            loading...
-          </div>
+          <motion.div
+            animate={{ rotate: [0, 5, -5, 0] }}
+            transition={{ duration: 0.5, repeat: Infinity }}
+            style={{ textAlign: 'center', fontSize: '36px', padding: '50px', color: '#fff' }}
+          >
+            loadin...
+          </motion.div>
         ) : (
-          <>
-            {/* Podium */}
-            {tab === 'submissions' && submissions.length >= 3 && renderSubmissionsPodium()}
-            {tab === 'voters' && voters.length >= 3 && renderVotersPodium()}
+          /* List - chaos cards */
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {submissions.length === 0 && (
+              <div style={{
+                textAlign: 'center',
+                padding: '40px',
+                color: '#fff',
+                fontFamily: 'Comic Neue, cursive',
+                fontSize: '20px'
+              }}>
+                no submissions yet... be da first!
+              </div>
+            )}
 
-            {/* List */}
-            {tab === 'submissions' && renderSubmissionsList()}
-            {tab === 'voters' && renderVotersList()}
-          </>
+            {submissions.map((sub, i) => {
+              const rank = i + 1 // Calculate rank from array index
+              const glowColor = getGlowColor(rank)
+              return (
+                <motion.div
+                  key={sub.wallet_address}
+                  initial={{ opacity: 0, x: i % 2 === 0 ? -30 : 30, rotate: getRandomRotation(i) * 2 }}
+                  animate={{ opacity: 1, x: 0, rotate: getRandomRotation(i) }}
+                  transition={{ delay: i * 0.07, type: 'spring', stiffness: 200 }}
+                  whileHover={{ scale: 1.02, rotate: 0, zIndex: 10, boxShadow: glowColor ? `0 0 25px ${glowColor}, 5px 5px 0 #000` : '8px 8px 0 #000' }}
+                  style={{
+                    background: getRandomGradient(i),
+                    border: glowColor ? `3px solid ${glowColor}` : '3px solid #000',
+                    padding: '12px 16px',
+                    boxShadow: glowColor ? `0 0 15px ${glowColor}, 5px 5px 0 #000` : '5px 5px 0 #000',
+                    cursor: 'pointer',
+                    position: 'relative'
+                  }}
+                >
+                  {/* Medal badge for top 3 */}
+                  {getMedalEmoji(rank) && (
+                    <div style={{
+                      position: 'absolute',
+                      top: '-10px',
+                      right: '-8px',
+                      fontSize: '28px',
+                      transform: 'rotate(15deg)'
+                    }}>
+                      {getMedalEmoji(rank)}
+                    </div>
+                  )}
+
+                  {/* Content */}
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                    <span style={{
+                      fontFamily: 'Comic Neue, cursive',
+                      fontSize: '18px',
+                      fontWeight: 'bold',
+                      color: '#fff',
+                      textShadow: '2px 2px 0 #000',
+                      minWidth: '35px'
+                    }}>
+                      #{rank}
+                    </span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', flexWrap: 'wrap' }}>
+                        <span style={{
+                          fontFamily: 'Comic Neue, cursive',
+                          fontSize: '17px',
+                          fontWeight: 'bold',
+                          color: '#000'
+                        }}>
+                          {sub.name}
+                        </span>
+                        <span style={{
+                          fontFamily: 'monospace',
+                          fontSize: '10px',
+                          color: 'rgba(0,0,0,0.6)',
+                          background: 'rgba(255,255,255,0.5)',
+                          padding: '2px 6px',
+                          borderRadius: '4px'
+                        }}>
+                          {truncateAddress(sub.wallet_address)}
+                        </span>
+                      </div>
+                      <div style={{
+                        fontFamily: 'Comic Neue, cursive',
+                        fontSize: '14px',
+                        color: '#000',
+                        lineHeight: 1.4
+                      }}>
+                        &quot;{sub.info}&quot;
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              )
+            })}
+          </div>
         )}
       </div>
     </div>

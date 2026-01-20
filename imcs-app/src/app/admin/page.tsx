@@ -71,13 +71,11 @@ export default function AdminDashboard() {
 
     try {
       const jsonData = JSON.parse(syncData)
-      const secretKey = prompt('Enter admin secret key:')
 
       const response = await fetch('/api/admin/sync-sheets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          secretKey,
           data: jsonData
         })
       })
@@ -375,8 +373,7 @@ export default function AdminDashboard() {
                 <li>Export your Google Sheet as CSV</li>
                 <li>Convert to JSON at: <a href="https://csvjson.com/csv2json" target="_blank" style={{ color: '#0066cc' }}>csvjson.com/csv2json</a></li>
                 <li>Paste the JSON data below</li>
-                <li>Click "Sync to Supabase"</li>
-                <li>Enter your admin secret key when prompted</li>
+                <li>Click &quot;Sync to Supabase&quot;</li>
               </ol>
             </div>
 
