@@ -231,7 +231,7 @@ export default function VotingCard({ submission, onVote, onSkip }: VotingCardPro
             fontFamily: 'Comic Neue, cursive',
             fontSize: 'clamp(16px, 4.5vw, 22px)',
             color: '#fff',
-            WebkitTextStroke: '1.5px #000',
+            WebkitTextStroke: '2.5px #000',
             paintOrder: 'stroke fill',
             lineHeight: 1.4,
             marginBottom: '20px',
