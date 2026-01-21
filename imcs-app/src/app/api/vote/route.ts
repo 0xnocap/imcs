@@ -9,7 +9,16 @@ export async function POST(request: NextRequest) {
     const submissionId = body.submission_id || body.submissionId
     const voteType = body.vote_type || body.voteType
     const voterWallet = body.voter_wallet || body.voterWallet
-    const voterIdentifier = body.voter_identifier || body.voterIP || voterWallet
+    
+    // Get voter identifier from body, or fall back to request headers for IP
+    let voterIdentifier = body.voter_identifier || body.voterIP || voterWallet
+    
+    // If no identifier provided or it's 'unknown', try to get IP from headers
+    if (!voterIdentifier || voterIdentifier === 'unknown') {
+      const forwardedFor = request.headers.get('x-forwarded-for')
+      const realIp = request.headers.get('x-real-ip')
+      voterIdentifier = forwardedFor?.split(',')[0]?.trim() || realIp || voterWallet
+    }
 
     // Validation
     if (!submissionId || !voteType) {
@@ -25,7 +34,7 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
-    if (!voterIdentifier) {
+    if (!voterIdentifier || voterIdentifier === 'unknown') {
       return NextResponse.json(
         { error: 'need wallet or IP to vote' },
         { status: 400 }

@@ -121,17 +121,26 @@ export default function VotePage() {
     setVoteCount(newVoteCount)
 
     // Fire vote API in background
-    const ip = cachedIp.current || 'unknown'
+    // Server will fall back to request IP if voter_identifier is missing
+    const ip = cachedIp.current
     fetch('/api/vote', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         submission_id: submissionId,
         vote_type: voteType,
-        voter_identifier: voterWallet || ip,
+        voter_identifier: voterWallet || ip || undefined,
         voter_wallet: voterWallet
       })
-    }).catch(err => console.error('Vote error:', err))
+    })
+      .then(res => {
+        if (!res.ok) {
+          return res.json().then(data => {
+            console.error('Vote API error:', res.status, data)
+          })
+        }
+      })
+      .catch(err => console.error('Vote network error:', err))
 
     // Show response overlay every 5-7 votes
     if (newVoteCount % animationInterval === 0) {
