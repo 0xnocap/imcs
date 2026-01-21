@@ -1,12 +1,19 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
+
+// Force dynamic rendering
+export const dynamic = 'force-dynamic'
 
 /**
  * Get a random submission for voting
- * GET /api/vote/random
+ * GET /api/vote/random?exclude=id1,id2,id3
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    // Get exclude IDs from query params
+    const excludeParam = request.nextUrl.searchParams.get('exclude')
+    const excludeIds = excludeParam ? excludeParam.split(',').filter(Boolean) : []
+
     // Get all submissions with their current scores, ordered by score descending
     const { data: submissions, error } = await supabase
       .from('leaderboard_submissions')
@@ -34,9 +41,21 @@ export async function GET() {
       rank: index + 1
     }))
 
-    // Return a random submission with its rank
-    const randomIndex = Math.floor(Math.random() * submissionsWithRank.length)
-    const randomSubmission = submissionsWithRank[randomIndex]
+    // Filter out excluded IDs
+    const availableSubmissions = submissionsWithRank.filter(
+      sub => !excludeIds.includes(sub.id)
+    )
+
+    if (availableSubmissions.length === 0) {
+      return NextResponse.json(
+        { error: 'no more submissions to vote on' },
+        { status: 404 }
+      )
+    }
+
+    // Return a random submission from available ones
+    const randomIndex = Math.floor(Math.random() * availableSubmissions.length)
+    const randomSubmission = availableSubmissions[randomIndex]
 
     return NextResponse.json(randomSubmission)
   } catch (error) {

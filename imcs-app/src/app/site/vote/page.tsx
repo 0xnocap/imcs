@@ -52,7 +52,7 @@ export default function VotePage() {
     }
   }, [votedIds])
 
-  const loadNextSubmission = async (excludeIds?: Set<string>) => {
+  const loadNextSubmission = async (additionalExcludeIds?: Set<string>) => {
     // Prevent concurrent loads
     if (isLoadingRef.current) return
     isLoadingRef.current = true
@@ -61,7 +61,14 @@ export default function VotePage() {
     setShowResponse(false)
 
     try {
-      const response = await fetch('/api/vote/random')
+      // Combine votedIds with any additional excludes
+      const allExcludeIds = new Set([...votedIds, ...(additionalExcludeIds || [])])
+      const excludeParam = Array.from(allExcludeIds).join(',')
+      const url = excludeParam 
+        ? `/api/vote/random?exclude=${encodeURIComponent(excludeParam)}`
+        : '/api/vote/random'
+      
+      const response = await fetch(url)
 
       if (!response.ok) {
         if (response.status === 404) {
@@ -76,25 +83,6 @@ export default function VotePage() {
       }
 
       const data = await response.json()
-      const idsToCheck = excludeIds || votedIds
-
-      // If already voted, try again (max 3 attempts)
-      if (idsToCheck.has(data.id)) {
-        isLoadingRef.current = false
-        // Add to exclude list and try again
-        const newExclude = new Set(idsToCheck)
-        newExclude.add(data.id)
-        if (newExclude.size < idsToCheck.size + 5) {
-          loadNextSubmission(newExclude)
-          return
-        } else {
-          setMessage('no more submissions 2 vote on! check bak later or submit ur own')
-          setCurrentSubmission(null)
-          setLoading(false)
-          return
-        }
-      }
-
       setCurrentSubmission(data)
       setLoading(false)
       isLoadingRef.current = false
