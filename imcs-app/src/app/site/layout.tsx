@@ -4,6 +4,7 @@ import { ReactNode, useState, useRef, useEffect } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import MusicPlayer from '@/components/MusicPlayer'
 import PopupSavants from '@/components/PopupSavants'
+import ConnectWallet from '@/components/ConnectWallet'
 
 type NavButton = {
   id: string
@@ -13,10 +14,11 @@ type NavButton = {
 }
 
 const navButtons: NavButton[] = [
-  { id: 'home', label: 'hoem', path: '/site', defaultPos: { x: 50, y: 15 } },
-  { id: 'submit', label: 'savaant lissst', path: '/site/submit', defaultPos: { x: 180, y: 15 } },
-  { id: 'vote', label: 'aprove r denie', path: '/site/vote', defaultPos: { x: 380, y: 15 } },
-  { id: 'leaderboard', label: 'leederbord', path: '/site/leaderboard', defaultPos: { x: 580, y: 15 } },
+  { id: 'home', label: 'hoem', path: '/site', defaultPos: { x: 20, y: 15 } },
+  { id: 'tasks', label: 'tasks', path: '/site/tasks', defaultPos: { x: 120, y: 15 } },
+  { id: 'vote', label: 'vote', path: '/site/vote', defaultPos: { x: 220, y: 15 } },
+  { id: 'leaderboard', label: 'leederbord', path: '/site/leaderboard', defaultPos: { x: 320, y: 15 } },
+  { id: 'profile', label: 'profil', path: '/site/profile', defaultPos: { x: 480, y: 15 } },
 ]
 
 export default function SiteLayout({ children }: { children: ReactNode }) {
@@ -117,8 +119,11 @@ export default function SiteLayout({ children }: { children: ReactNode }) {
   return (
     <div id="main-site">
       {/* Header */}
-      <header>
-        <h1>imaginary magic crypto savants</h1>
+      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+        <h1 style={{ flex: '1', minWidth: '200px' }}>imaginary magic crypto savants</h1>
+        <div style={{ display: isMobile ? 'none' : 'block' }}>
+          <ConnectWallet compact={true} />
+        </div>
       </header>
 
       {/* Navigation Bar - Magenta bar with draggable buttons (desktop) or flex buttons (mobile) */}
