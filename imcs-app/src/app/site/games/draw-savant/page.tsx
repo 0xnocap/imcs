@@ -12,62 +12,136 @@ const COLORS = [
 
 const BRUSH_SIZES = [4, 8, 16]
 
+// Convert hex color to RGBA array
+const hexToRgba = (hex: string): [number, number, number, number] => {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
+  if (result) {
+    return [parseInt(result[1], 16), parseInt(result[2], 16), parseInt(result[3], 16), 255]
+  }
+  return [0, 0, 0, 255]
+}
+
+// Flood fill algorithm
+const floodFill = (ctx: CanvasRenderingContext2D, startX: number, startY: number, fillColor: [number, number, number, number]) => {
+  const imageData = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height)
+  const data = imageData.data
+  const width = ctx.canvas.width
+  const height = ctx.canvas.height
+
+  const startPos = (startY * width + startX) * 4
+  const startR = data[startPos]
+  const startG = data[startPos + 1]
+  const startB = data[startPos + 2]
+  const startA = data[startPos + 3]
+
+  // Don't fill if clicking on the same color
+  if (startR === fillColor[0] && startG === fillColor[1] && startB === fillColor[2] && startA === fillColor[3]) {
+    return
+  }
+
+  const stack: [number, number][] = [[startX, startY]]
+  const visited = new Set<string>()
+
+  const matchesStart = (pos: number) => {
+    return Math.abs(data[pos] - startR) < 10 &&
+           Math.abs(data[pos + 1] - startG) < 10 &&
+           Math.abs(data[pos + 2] - startB) < 10 &&
+           Math.abs(data[pos + 3] - startA) < 10
+  }
+
+  while (stack.length > 0) {
+    const [x, y] = stack.pop()!
+    const key = `${x},${y}`
+
+    if (visited.has(key)) continue
+    if (x < 0 || x >= width || y < 0 || y >= height) continue
+
+    const pos = (y * width + x) * 4
+    if (!matchesStart(pos)) continue
+
+    visited.add(key)
+
+    data[pos] = fillColor[0]
+    data[pos + 1] = fillColor[1]
+    data[pos + 2] = fillColor[2]
+    data[pos + 3] = fillColor[3]
+
+    stack.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1])
+  }
+
+  ctx.putImageData(imageData, 0, 0)
+}
+
 export default function DrawSavantGame() {
   const router = useRouter()
   const { address } = useWallet()
-  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const bgCanvasRef = useRef<HTMLCanvasElement>(null)
+  const drawCanvasRef = useRef<HTMLCanvasElement>(null)
   const [isDrawing, setIsDrawing] = useState(false)
   const [color, setColor] = useState('#ff00ff')
   const [brushSize, setBrushSize] = useState(8)
-  const [isEraser, setIsEraser] = useState(false)
+  const [tool, setTool] = useState<'brush' | 'eraser' | 'fill'>('brush')
   const [hasDrawn, setHasDrawn] = useState(false)
   const [showSharePrompt, setShowSharePrompt] = useState(false)
-  const [baseImageLoaded, setBaseImageLoaded] = useState(false)
+  const [canvasSize, setCanvasSize] = useState(500)
+  const [copySuccess, setCopySuccess] = useState(false)
+  const [alreadyCompleted, setAlreadyCompleted] = useState(false)
+  const [pointsEarned, setPointsEarned] = useState(0)
   const lastPosRef = useRef<{ x: number; y: number } | null>(null)
 
-  // Load base image
+  // Check if already completed
   useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
+    const checkCompletion = async () => {
+      if (!address) return
+      try {
+        const res = await fetch(`/api/tasks/${address}`)
+        if (res.ok) {
+          const data = await res.json()
+          const paintTask = data.tasks?.find((t: any) => t.task_type === 'paint')
+          if (paintTask) {
+            setAlreadyCompleted(true)
+          }
+        }
+      } catch (e) {
+        console.error('Failed to check completion:', e)
+      }
+    }
+    checkCompletion()
+  }, [address])
 
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
+  // Initialize canvases
+  useEffect(() => {
+    const bgCanvas = bgCanvasRef.current
+    const drawCanvas = drawCanvasRef.current
+    if (!bgCanvas || !drawCanvas) return
 
-    // Set canvas size
-    const width = Math.min(window.innerWidth - 40, 600)
-    const height = Math.min(window.innerHeight - 250, 500)
-    canvas.width = width
-    canvas.height = height
+    const bgCtx = bgCanvas.getContext('2d')
+    const drawCtx = drawCanvas.getContext('2d')
+    if (!bgCtx || !drawCtx) return
 
-    // White background
-    ctx.fillStyle = '#ffffff'
-    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    // Set canvas size - must be square for the character image
+    const maxSize = Math.min(window.innerWidth - 40, window.innerHeight - 280, 500)
+    setCanvasSize(maxSize)
+    bgCanvas.width = maxSize
+    bgCanvas.height = maxSize
+    drawCanvas.width = maxSize
+    drawCanvas.height = maxSize
 
-    // Load and draw base image (savant outline)
+    // White background on the background canvas
+    bgCtx.fillStyle = '#ffffff'
+    bgCtx.fillRect(0, 0, bgCanvas.width, bgCanvas.height)
+
+    // Load and draw base image on background canvas
     const img = new Image()
     img.crossOrigin = 'anonymous'
     img.onload = () => {
-      // Calculate centered position
-      const scale = Math.min(
-        (canvas.width * 0.7) / img.width,
-        (canvas.height * 0.8) / img.height
-      )
-      const imgWidth = img.width * scale
-      const imgHeight = img.height * scale
-      const x = (canvas.width - imgWidth) / 2
-      const y = (canvas.height - imgHeight) / 2 + 20
-
-      // Draw with reduced opacity as outline
-      ctx.globalAlpha = 0.2
-      ctx.drawImage(img, x, y, imgWidth, imgHeight)
-      ctx.globalAlpha = 1.0
-      setBaseImageLoaded(true)
+      bgCtx.drawImage(img, 0, 0, bgCanvas.width, bgCanvas.height)
     }
-    img.src = '/assets/character/savant-dopey.png'
+    img.src = '/assets/character/blank-IMCS.png'
   }, [])
 
   const getPos = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current
+    const canvas = drawCanvasRef.current
     if (!canvas) return { x: 0, y: 0 }
 
     const rect = canvas.getBoundingClientRect()
@@ -83,16 +157,36 @@ export default function DrawSavantGame() {
     }
   }
 
+  const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    if (tool === 'fill') {
+      const canvas = drawCanvasRef.current
+      if (!canvas) return
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return
+
+      const pos = getPos(e)
+      const x = Math.floor(pos.x)
+      const y = Math.floor(pos.y)
+
+      floodFill(ctx, x, y, hexToRgba(color))
+      setHasDrawn(true)
+    }
+  }
+
   const startDrawing = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    if (tool === 'fill') {
+      handleCanvasClick(e)
+      return
+    }
     setIsDrawing(true)
     const pos = getPos(e)
     lastPosRef.current = pos
   }
 
   const draw = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
-    if (!isDrawing) return
+    if (!isDrawing || tool === 'fill') return
 
-    const canvas = canvasRef.current
+    const canvas = drawCanvasRef.current
     if (!canvas) return
 
     const ctx = canvas.getContext('2d')
@@ -105,11 +199,24 @@ export default function DrawSavantGame() {
       ctx.beginPath()
       ctx.moveTo(lastPos.x, lastPos.y)
       ctx.lineTo(pos.x, pos.y)
-      ctx.strokeStyle = isEraser ? '#ffffff' : color
+
+      if (tool === 'eraser') {
+        // Use destination-out to erase only what's on this canvas
+        ctx.globalCompositeOperation = 'destination-out'
+        ctx.strokeStyle = 'rgba(0,0,0,1)'
+      } else {
+        ctx.globalCompositeOperation = 'source-over'
+        ctx.strokeStyle = color
+      }
+
       ctx.lineWidth = brushSize
       ctx.lineCap = 'round'
       ctx.lineJoin = 'round'
       ctx.stroke()
+
+      // Reset composite operation
+      ctx.globalCompositeOperation = 'source-over'
+
       setHasDrawn(true)
     }
 
@@ -122,46 +229,66 @@ export default function DrawSavantGame() {
   }
 
   const clearCanvas = () => {
-    const canvas = canvasRef.current
+    const canvas = drawCanvasRef.current
     if (!canvas) return
 
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    // White background
-    ctx.fillStyle = '#ffffff'
-    ctx.fillRect(0, 0, canvas.width, canvas.height)
-
-    // Redraw base image
-    const img = new Image()
-    img.crossOrigin = 'anonymous'
-    img.onload = () => {
-      const scale = Math.min(
-        (canvas.width * 0.7) / img.width,
-        (canvas.height * 0.8) / img.height
-      )
-      const imgWidth = img.width * scale
-      const imgHeight = img.height * scale
-      const x = (canvas.width - imgWidth) / 2
-      const y = (canvas.height - imgHeight) / 2 + 20
-
-      ctx.globalAlpha = 0.2
-      ctx.drawImage(img, x, y, imgWidth, imgHeight)
-      ctx.globalAlpha = 1.0
-    }
-    img.src = '/assets/character/savant-dopey.png'
-
+    // Clear only the drawing canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
     setHasDrawn(false)
   }
 
+  const getCompositeCanvas = () => {
+    const bgCanvas = bgCanvasRef.current
+    const drawCanvas = drawCanvasRef.current
+    if (!bgCanvas || !drawCanvas) return null
+
+    // Create a temporary canvas to composite both layers
+    const tempCanvas = document.createElement('canvas')
+    tempCanvas.width = canvasSize
+    tempCanvas.height = canvasSize
+    const tempCtx = tempCanvas.getContext('2d')
+    if (!tempCtx) return null
+
+    // Draw background first, then drawing layer on top
+    tempCtx.drawImage(bgCanvas, 0, 0)
+    tempCtx.drawImage(drawCanvas, 0, 0)
+
+    return tempCanvas
+  }
+
   const saveImage = () => {
-    const canvas = canvasRef.current
-    if (!canvas) return
+    const tempCanvas = getCompositeCanvas()
+    if (!tempCanvas) return
 
     const link = document.createElement('a')
     link.download = 'my-savant-masterpiece.png'
-    link.href = canvas.toDataURL('image/png')
+    link.href = tempCanvas.toDataURL('image/png')
     link.click()
+  }
+
+  const copyImage = async () => {
+    const tempCanvas = getCompositeCanvas()
+    if (!tempCanvas) return
+
+    try {
+      const blob = await new Promise<Blob | null>((resolve) => {
+        tempCanvas.toBlob(resolve, 'image/png')
+      })
+
+      if (blob) {
+        await navigator.clipboard.write([
+          new ClipboardItem({ 'image/png': blob })
+        ])
+        setCopySuccess(true)
+        setTimeout(() => setCopySuccess(false), 2000)
+      }
+    } catch (e) {
+      console.error('Failed to copy image:', e)
+      alert('copy failed - try download instead')
+    }
   }
 
   const handleComplete = async () => {
@@ -173,7 +300,7 @@ export default function DrawSavantGame() {
     // Save score
     if (address) {
       try {
-        await fetch('/api/tasks/complete', {
+        const response = await fetch('/api/tasks/complete', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -182,6 +309,11 @@ export default function DrawSavantGame() {
             score: 200,
           }),
         })
+        const result = await response.json()
+        setPointsEarned(result.added || (alreadyCompleted ? 0 : 200))
+        if (!alreadyCompleted && result.success) {
+          setAlreadyCompleted(true)
+        }
       } catch (e) {
         console.error('Failed to save score:', e)
       }
@@ -262,12 +394,12 @@ export default function DrawSavantGame() {
           {COLORS.map(c => (
             <div
               key={c}
-              onClick={() => { setColor(c); setIsEraser(false) }}
+              onClick={() => { setColor(c); setTool('brush') }}
               style={{
                 width: '20px',
                 height: '20px',
                 background: c,
-                border: color === c && !isEraser ? '2px solid #ff00ff' : '1px solid #000',
+                border: color === c && tool === 'brush' ? '2px solid #ff00ff' : '1px solid #000',
                 cursor: 'pointer',
               }}
             />
@@ -302,12 +434,38 @@ export default function DrawSavantGame() {
           ))}
         </div>
 
-        {/* Eraser */}
+        {/* Tool buttons */}
         <button
-          onClick={() => setIsEraser(!isEraser)}
+          onClick={() => setTool('brush')}
           style={{
             padding: '5px 10px',
-            background: isEraser ? '#ff6b9d' : '#c0c0c0',
+            background: tool === 'brush' ? '#00bfff' : '#c0c0c0',
+            border: '2px outset #fff',
+            cursor: 'pointer',
+            fontFamily: 'Comic Neue, cursive',
+          }}
+        >
+          🖌️ brush
+        </button>
+
+        <button
+          onClick={() => setTool('fill')}
+          style={{
+            padding: '5px 10px',
+            background: tool === 'fill' ? '#00bfff' : '#c0c0c0',
+            border: '2px outset #fff',
+            cursor: 'pointer',
+            fontFamily: 'Comic Neue, cursive',
+          }}
+        >
+          🪣 fill
+        </button>
+
+        <button
+          onClick={() => setTool('eraser')}
+          style={{
+            padding: '5px 10px',
+            background: tool === 'eraser' ? '#ff6b9d' : '#c0c0c0',
             border: '2px outset #fff',
             cursor: 'pointer',
             fontFamily: 'Comic Neue, cursive',
@@ -331,13 +489,27 @@ export default function DrawSavantGame() {
         </button>
       </div>
 
-      {/* Canvas */}
+      {/* Canvas container - two stacked canvases */}
       <div style={{
         border: '3px inset #808080',
         background: '#fff',
+        position: 'relative',
+        width: canvasSize,
+        height: canvasSize,
       }}>
+        {/* Background canvas - savant image */}
         <canvas
-          ref={canvasRef}
+          ref={bgCanvasRef}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            display: 'block',
+          }}
+        />
+        {/* Drawing canvas - user draws here */}
+        <canvas
+          ref={drawCanvasRef}
           onMouseDown={startDrawing}
           onMouseMove={draw}
           onMouseUp={stopDrawing}
@@ -346,14 +518,17 @@ export default function DrawSavantGame() {
           onTouchMove={draw}
           onTouchEnd={stopDrawing}
           style={{
-            cursor: isEraser ? 'cell' : 'crosshair',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            cursor: tool === 'eraser' ? 'cell' : tool === 'fill' ? 'pointer' : 'crosshair',
             display: 'block',
             touchAction: 'none',
           }}
         />
       </div>
 
-      {/* Current color indicator */}
+      {/* Current tool indicator */}
       <div style={{
         marginTop: '10px',
         display: 'flex',
@@ -364,10 +539,10 @@ export default function DrawSavantGame() {
         <div style={{
           width: '30px',
           height: '30px',
-          background: isEraser ? '#ffffff' : color,
+          background: tool === 'eraser' ? '#ffffff' : color,
           border: '2px solid #000',
         }} />
-        <span>{isEraser ? 'eraser' : color}</span>
+        <span>{tool === 'eraser' ? 'eraser' : tool === 'fill' ? `fill (${color})` : color}</span>
       </div>
 
       {/* Action buttons */}
@@ -405,7 +580,7 @@ export default function DrawSavantGame() {
             boxShadow: '3px 3px 0 #000',
           }}
         >
-          ✅ complete (+200 pts)
+          ✅ suhbmet {alreadyCompleted ? '(no more pts)' : '(+200 pts)'}
         </button>
       </div>
 
@@ -444,8 +619,11 @@ export default function DrawSavantGame() {
             <p style={{
               fontSize: '24px',
               marginBottom: '20px',
+              color: pointsEarned > 0 ? '#000' : '#666',
             }}>
-              +200 points earned!
+              {pointsEarned > 0
+                ? `+${pointsEarned} points earned!`
+                : 'nice art! (u already got ur points tho)'}
             </p>
 
             <div style={{
@@ -467,6 +645,21 @@ export default function DrawSavantGame() {
                 }}
               >
                 share on X 🐦
+              </button>
+
+              <button
+                onClick={copyImage}
+                style={{
+                  fontFamily: 'Comic Neue, cursive',
+                  fontSize: '20px',
+                  padding: '15px 30px',
+                  background: copySuccess ? '#00ff00' : '#ff6b9d',
+                  border: '3px solid #000',
+                  cursor: 'pointer',
+                  boxShadow: '4px 4px 0 #000',
+                }}
+              >
+                {copySuccess ? 'copied! ✅' : 'copy image 📋'}
               </button>
 
               <button

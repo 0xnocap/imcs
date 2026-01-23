@@ -14,40 +14,47 @@ type Task = {
   icon: string
   completed: boolean
   completedScore?: number
+  completionCount?: number
+  maxAttempts?: number
 }
+
+const MAX_ATTEMPTS = 5
 
 const TASKS: Task[] = [
   {
     id: 'circle',
     name: 'circle drawing',
-    description: 'draw a perfect circle',
+    description: 'draw a perfect circle (5x max)',
     points: '100-300',
     route: '/site/games/circle',
     icon: '⭕',
     completed: false,
+    maxAttempts: MAX_ATTEMPTS,
   },
   {
     id: 'typing',
     name: 'typing test',
-    description: 'type the savant copypasta fast',
+    description: 'type the savant copypasta fast (5x max)',
     points: '100-200',
     route: '/site/games/typing',
     icon: '⌨️',
     completed: false,
+    maxAttempts: MAX_ATTEMPTS,
   },
   {
     id: 'bubble',
     name: 'bubble pop',
-    description: 'pop as many bubbles as u can in 30 sec',
+    description: 'pop bubbles in 30 sec (5x max)',
     points: '1-500+',
     route: '/site/games/bubble-pop',
     icon: '🫧',
     completed: false,
+    maxAttempts: MAX_ATTEMPTS,
   },
   {
     id: 'paint',
     name: 'paint savant',
-    description: 'draw ur own savant masterpiece',
+    description: 'draw ur own savant masterpiece (1x pts)',
     points: '200',
     route: '/site/games/draw-savant',
     icon: '🎨',
@@ -65,8 +72,8 @@ const TASKS: Task[] = [
   {
     id: 'vote',
     name: 'vote x10',
-    description: 'vote on 10 submissions',
-    points: '100',
+    description: 'vote on 10 submissions (repeatable!)',
+    points: '100 per 10 votes',
     route: '/site/vote',
     icon: '👍',
     completed: false,
@@ -80,50 +87,73 @@ export default function TasksPage() {
   const [totalPoints, setTotalPoints] = useState(0)
   const [loading, setLoading] = useState(true)
 
+  // Fetch on mount and when address changes
   useEffect(() => {
     if (isConnected && address) {
-      fetchCompletedTasks()
-      fetchTotalPoints()
+      fetchAllData()
     } else {
       setLoading(false)
     }
   }, [isConnected, address])
 
-  const fetchCompletedTasks = async () => {
+  // Refetch when page gains focus (user navigates back from a game)
+  useEffect(() => {
+    const handleFocus = () => {
+      if (isConnected && address) {
+        fetchAllData()
+      }
+    }
+
+    window.addEventListener('focus', handleFocus)
+    return () => window.removeEventListener('focus', handleFocus)
+  }, [isConnected, address])
+
+  const fetchAllData = async () => {
     if (!address) return
 
     try {
-      const response = await fetch(`/api/tasks/${address}`)
-      if (response.ok) {
-        const data = await response.json()
-        const completedMap = new Map(
-          (data.tasks || []).map((t: any) => [t.task_type, t.score])
+      // Fetch both profile and tasks in parallel with no caching
+      const [profileRes, tasksRes] = await Promise.all([
+        fetch(`/api/profile/${address}`, {
+          cache: 'no-store',
+          headers: { 'Cache-Control': 'no-cache' }
+        }),
+        fetch(`/api/tasks/${address}`, {
+          cache: 'no-store',
+          headers: { 'Cache-Control': 'no-cache' }
+        })
+      ])
+
+      // Process profile data - use API's pre-calculated total_points
+      if (profileRes.ok) {
+        const profileData = await profileRes.json()
+        setTotalPoints(profileData.total_points || 0)
+      }
+
+      // Process tasks data for completion status display
+      if (tasksRes.ok) {
+        const tasksData = await tasksRes.json()
+        const tasksList = tasksData.tasks || []
+
+        // Update task completion status with score and completion count
+        const completedMap = new Map<string, { score: number; count: number }>(
+          tasksList.map((t: any) => [t.task_type, { score: t.score, count: t.completion_count || 1 }])
         )
 
-        setTasks(prevTasks => prevTasks.map(task => ({
-          ...task,
-          completed: completedMap.has(task.id),
-          completedScore: completedMap.get(task.id) as number | undefined,
-        })))
+        setTasks(prevTasks => prevTasks.map(task => {
+          const taskData = completedMap.get(task.id)
+          return {
+            ...task,
+            completed: completedMap.has(task.id),
+            completedScore: taskData?.score,
+            completionCount: taskData?.count,
+          }
+        }))
       }
     } catch (e) {
-      // API may not exist yet
+      console.error('Failed to fetch data:', e)
     }
     setLoading(false)
-  }
-
-  const fetchTotalPoints = async () => {
-    if (!address) return
-
-    try {
-      const response = await fetch(`/api/profile/${address}`)
-      if (response.ok) {
-        const data = await response.json()
-        setTotalPoints((data.submission_score || 0) + (data.voting_karma || 0))
-      }
-    } catch (e) {
-      // Profile may not exist
-    }
   }
 
   const handleTaskClick = (route: string) => {
@@ -275,6 +305,19 @@ export default function TasksPage() {
                 <span>{task.points} pts</span>
               )}
             </div>
+
+            {/* Attempts info for limited tasks */}
+            {task.maxAttempts && task.completed && (
+              <div style={{
+                marginTop: '8px',
+                fontSize: '14px',
+                color: (task.completionCount || 0) >= task.maxAttempts ? '#cc0000' : '#006600',
+              }}>
+                {(task.completionCount || 0) >= task.maxAttempts
+                  ? 'max attempts reached'
+                  : `${task.maxAttempts - (task.completionCount || 0)} attempts left`}
+              </div>
+            )}
           </div>
         ))}
       </div>

@@ -183,38 +183,44 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Function to apply referral bonus
-CREATE OR REPLACE FUNCTION apply_referral_bonus(ref_code TEXT, referred_wallet TEXT)
+-- NOTE: Using p_ prefix for parameters to avoid column name conflicts
+CREATE OR REPLACE FUNCTION apply_referral_bonus(p_ref_code TEXT, p_referred_wallet TEXT)
 RETURNS BOOLEAN AS $$
 DECLARE
-  referrer_wallet TEXT;
-  already_referred BOOLEAN;
+  v_referrer_wallet TEXT;
+  v_already_referred BOOLEAN;
 BEGIN
-  -- Check if already referred
+  -- Check if this wallet was already referred
   SELECT EXISTS(
-    SELECT 1 FROM referrals WHERE referred_wallet = referred_wallet
-  ) INTO already_referred;
+    SELECT 1 FROM referrals WHERE referred_wallet = p_referred_wallet
+  ) INTO v_already_referred;
 
-  IF already_referred THEN
+  IF v_already_referred THEN
     RETURN FALSE;
   END IF;
 
-  -- Find referrer by code
-  SELECT wallet_address INTO referrer_wallet
+  -- Find referrer by their referral code
+  SELECT wallet_address INTO v_referrer_wallet
   FROM submissions
-  WHERE referrer_code = ref_code;
+  WHERE referrer_code = p_ref_code;
 
-  IF referrer_wallet IS NULL THEN
+  IF v_referrer_wallet IS NULL THEN
+    RETURN FALSE;
+  END IF;
+
+  -- Don't allow self-referral
+  IF v_referrer_wallet = p_referred_wallet THEN
     RETURN FALSE;
   END IF;
 
   -- Insert referral record
   INSERT INTO referrals (referrer_wallet, referred_wallet, referral_code)
-  VALUES (referrer_wallet, referred_wallet, ref_code);
+  VALUES (v_referrer_wallet, p_referred_wallet, p_ref_code);
 
   -- Give bonus to referrer (50 points)
   UPDATE submissions
   SET score = score + 50
-  WHERE wallet_address = referrer_wallet;
+  WHERE wallet_address = v_referrer_wallet;
 
   RETURN TRUE;
 END;

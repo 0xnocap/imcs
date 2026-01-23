@@ -179,7 +179,7 @@ export default function LeaderboardPage() {
             <h3 style={{ marginBottom: '8px', fontFamily: 'Comic Neue, cursive' }}>found em!</h3>
             <div style={{ fontFamily: 'Comic Neue, cursive', fontSize: '14px' }}>
               <div><strong>name:</strong> {searchResult.name}</div>
-              <div><strong>score:</strong> {searchResult.submission_score ?? searchResult.score}</div>
+              <div><strong>total points:</strong> {(searchResult as any).total_points ?? searchResult.submission_score ?? searchResult.score}</div>
               <div><strong>info:</strong> {searchResult.info}</div>
             </div>
           </motion.div>

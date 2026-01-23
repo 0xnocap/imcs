@@ -1,18 +1,23 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
-import { useState, useEffect, useRef } from 'react'
-import { useWallet } from '@/hooks/useWallet'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { useState, useEffect, useRef, Suspense } from 'react'
 
-export default function SplashScreen() {
+function SplashScreenContent() {
   const router = useRouter()
-  const { address, isConnected, connect } = useWallet()
+  const searchParams = useSearchParams()
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 })
-  const [showButtons, setShowButtons] = useState(false)
-  const [pendingRoute, setPendingRoute] = useState<string | null>(null)
   const irisLeftRef = useRef<HTMLImageElement>(null)
   const irisRightRef = useRef<HTMLImageElement>(null)
   const eyesWrapperRef = useRef<HTMLDivElement>(null)
+
+  // Capture referral code from URL and store in localStorage
+  useEffect(() => {
+    const refCode = searchParams.get('ref')
+    if (refCode) {
+      localStorage.setItem('referralCode', refCode.toUpperCase())
+    }
+  }, [searchParams])
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -44,37 +49,7 @@ export default function SplashScreen() {
     return () => document.removeEventListener('mousemove', handleMouseMove)
   }, [])
 
-  // Handle navigation after wallet connects
-  useEffect(() => {
-    if (isConnected && pendingRoute) {
-      router.push(pendingRoute)
-      setPendingRoute(null)
-    }
-  }, [isConnected, pendingRoute, router])
-
   const handleEnter = () => {
-    setShowButtons(true)
-  }
-
-  const handleProoveSavant = () => {
-    if (isConnected) {
-      router.push('/site/tasks')
-    } else {
-      setPendingRoute('/site/tasks')
-      connect()
-    }
-  }
-
-  const handleCheckWallet = () => {
-    if (isConnected) {
-      router.push('/site/profile')
-    } else {
-      setPendingRoute('/site/profile')
-      connect()
-    }
-  }
-
-  const handleJustLook = () => {
     router.push('/site')
   }
 
@@ -137,84 +112,23 @@ export default function SplashScreen() {
         <div className="skin-vignette" />
       </div>
 
-      {/* Initial enter button */}
-      {!showButtons && (
-        <button id="enter-btn" onClick={handleEnter}>
-          walcum tu savant wurld
-        </button>
-      )}
-
-      {/* Entry choice buttons */}
-      {showButtons && (
-        <div style={{
-          position: 'absolute',
-          bottom: '60px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '15px',
-          alignItems: 'center',
-          zIndex: 10,
-          padding: '0 20px',
-          width: '100%',
-          maxWidth: '400px',
-        }}>
-          <button
-            onClick={handleProoveSavant}
-            style={{
-              fontFamily: 'Comic Neue, cursive',
-              fontSize: 'clamp(20px, 5vw, 28px)',
-              padding: '15px 40px',
-              background: '#00ff00',
-              border: '4px solid #fff',
-              cursor: 'pointer',
-              transform: 'rotate(-2deg)',
-              boxShadow: '0 0 20px rgba(0,255,0,0.8), 5px 5px 0 #fff',
-              transition: 'all 0.1s',
-              width: '100%',
-              animation: 'pulse 2s infinite',
-            }}
-          >
-            proove savant
-          </button>
-
-          <button
-            onClick={handleCheckWallet}
-            style={{
-              fontFamily: 'Comic Neue, cursive',
-              fontSize: 'clamp(18px, 4vw, 24px)',
-              padding: '12px 30px',
-              background: '#ff00ff',
-              border: '4px solid #fff',
-              cursor: 'pointer',
-              transform: 'rotate(1deg)',
-              boxShadow: '0 0 15px rgba(255,0,255,0.8), 4px 4px 0 #fff',
-              transition: 'all 0.1s',
-              color: '#fff',
-              textShadow: '2px 2px 0 #000',
-              width: '100%',
-            }}
-          >
-            chek wallut
-          </button>
-
-          <button
-            onClick={handleJustLook}
-            style={{
-              fontFamily: 'Comic Neue, cursive',
-              fontSize: 'clamp(14px, 3vw, 18px)',
-              padding: '8px 20px',
-              background: 'transparent',
-              border: '2px solid #fff',
-              cursor: 'pointer',
-              color: '#fff',
-              opacity: 0.7,
-              transition: 'all 0.1s',
-            }}
-          >
-            just lookin around
-          </button>
-        </div>
-      )}
+      {/* Enter button */}
+      <button id="enter-btn" onClick={handleEnter}>
+        walcum tu savant wurld
+      </button>
     </div>
+  )
+}
+
+// Wrap in Suspense for useSearchParams
+export default function SplashScreen() {
+  return (
+    <Suspense fallback={
+      <div id="splash" style={{ background: '#000' }}>
+        <div style={{ color: '#fff', fontSize: '24px' }}>loading...</div>
+      </div>
+    }>
+      <SplashScreenContent />
+    </Suspense>
   )
 }

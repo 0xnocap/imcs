@@ -161,9 +161,8 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// Helper function to generate referral code
+// Helper function to generate referral code - must match profile page display
+// Uses chars 2-10 of wallet address (after 0x)
 function generateReferralCode(walletAddress: string): string {
-  const walletPart = walletAddress.slice(-6)
-  const randomPart = Math.random().toString(36).substring(2, 6)
-  return `${walletPart}${randomPart}`.toUpperCase()
+  return walletAddress.slice(2, 10).toUpperCase()
 }

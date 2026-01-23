@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useWallet } from '@/hooks/useWallet'
 import ConnectWallet from '@/components/ConnectWallet'
 
@@ -16,11 +16,14 @@ type ProfileData = {
   whitelist_method?: string
   referrals_made: number
   rank?: number
+  task_points?: number
+  total_points?: number
 }
 
 type TaskCompletion = {
   task_type: string
   score: number
+  completion_count?: number
   completed_at: string
 }
 
@@ -32,58 +35,86 @@ export default function ProfilePage() {
   const [error, setError] = useState<string | null>(null)
   const [rank, setRank] = useState<number | null>(null)
 
-  useEffect(() => {
-    if (isConnected && address) {
-      fetchProfile()
-      fetchCompletedTasks()
-    } else {
+  const fetchAllData = useCallback(async () => {
+    if (!address) {
       setLoading(false)
+      return
     }
-  }, [isConnected, address])
 
-  const fetchProfile = async () => {
-    if (!address) return
+    setLoading(true)
 
     try {
-      const response = await fetch(`/api/profile/${address}`)
-      if (response.ok) {
-        const data = await response.json()
-        setProfile(data)
-        setError(null)
+      // Fetch profile, tasks, and leaderboard in parallel
+      const [profileRes, tasksRes, lbRes] = await Promise.all([
+        fetch(`/api/profile/${address}`, {
+          cache: 'no-store',
+          headers: { 'Cache-Control': 'no-cache' }
+        }),
+        fetch(`/api/tasks/${address}`, {
+          cache: 'no-store',
+          headers: { 'Cache-Control': 'no-cache' }
+        }),
+        fetch(`/api/leaderboard/submissions?limit=1000`, {
+          cache: 'no-store',
+          headers: { 'Cache-Control': 'no-cache' }
+        })
+      ])
 
-        // Fetch rank from leaderboard
-        const lbResponse = await fetch('/api/leaderboard/submissions?limit=1000')
-        if (lbResponse.ok) {
-          const lbData = await lbResponse.json()
-          const userRank = lbData.findIndex(
-            (s: any) => s.wallet_address.toLowerCase() === address.toLowerCase()
-          ) + 1
-          setRank(userRank > 0 ? userRank : null)
-        }
+      // Process profile - this now includes correct total_points from API
+      if (profileRes.ok) {
+        const profileData = await profileRes.json()
+        setProfile(profileData)
+        setError(null)
       } else {
         setError('ur wallet not savant yet. submit form first, nerd')
         setProfile(null)
       }
-    } catch (e) {
-      setError('error loading profile')
-    }
-    setLoading(false)
-  }
 
-  const fetchCompletedTasks = async () => {
-    if (!address) return
-    try {
-      const response = await fetch(`/api/tasks/${address}`)
-      if (response.ok) {
-        const data = await response.json()
-        setCompletedTasks(data.tasks || [])
+      // Process tasks
+      if (tasksRes.ok) {
+        const tasksData = await tasksRes.json()
+        setCompletedTasks(tasksData.tasks || [])
+      }
+
+      // Process leaderboard for rank
+      if (lbRes.ok) {
+        const lbData = await lbRes.json()
+        const userRank = lbData.findIndex(
+          (s: any) => s.wallet_address.toLowerCase() === address.toLowerCase()
+        ) + 1
+        setRank(userRank > 0 ? userRank : null)
       }
     } catch (e) {
-      // Tasks API may not exist yet
+      console.error('Failed to fetch profile data:', e)
+      setError('error loading profile')
     }
-  }
 
-  const totalPoints = (profile?.submission_score || 0) + (profile?.voting_karma || 0)
+    setLoading(false)
+  }, [address])
+
+  // Fetch on mount and when address changes
+  useEffect(() => {
+    if (isConnected && address) {
+      fetchAllData()
+    } else {
+      setLoading(false)
+    }
+  }, [isConnected, address, fetchAllData])
+
+  // Refetch when page gains focus (user navigates back)
+  useEffect(() => {
+    const handleFocus = () => {
+      if (isConnected && address) {
+        fetchAllData()
+      }
+    }
+
+    window.addEventListener('focus', handleFocus)
+    return () => window.removeEventListener('focus', handleFocus)
+  }, [isConnected, address, fetchAllData])
+
+  // Total points comes directly from the API - it calculates correctly
+  const totalPoints = profile?.total_points || 0
 
   const referralCode = address ? address.slice(2, 10).toUpperCase() : ''
 
@@ -94,7 +125,8 @@ export default function ProfilePage() {
   }
 
   const copyReferralCode = () => {
-    navigator.clipboard.writeText(`imcs.world?ref=${referralCode}`)
+    // Link to homepage with ref param - it will be stored and used on submit
+    navigator.clipboard.writeText(`https://imcs.world?ref=${referralCode}`)
     alert('copied 2 clipboard!')
   }
 
@@ -206,9 +238,9 @@ export default function ProfilePage() {
             border: '3px solid #000',
           }}>
             <div style={{ fontSize: '28px', fontWeight: 'bold' }}>
-              {profile.submission_score}
+              {profile.submission_score || 0}
             </div>
-            <div style={{ fontSize: '14px' }}>submission score</div>
+            <div style={{ fontSize: '14px' }}>vote score</div>
           </div>
           <div style={{
             background: 'rgba(255,255,255,0.3)',
@@ -216,7 +248,7 @@ export default function ProfilePage() {
             border: '3px solid #000',
           }}>
             <div style={{ fontSize: '28px', fontWeight: 'bold' }}>
-              {profile.voting_karma}
+              {profile.voting_karma || 0}
             </div>
             <div style={{ fontSize: '14px' }}>voting karma</div>
           </div>
@@ -226,9 +258,9 @@ export default function ProfilePage() {
             border: '3px solid #000',
           }}>
             <div style={{ fontSize: '28px', fontWeight: 'bold' }}>
-              {profile.referrals_made}
+              {completedTasks.reduce((sum, t) => sum + (t.score || 0), 0)}
             </div>
-            <div style={{ fontSize: '14px' }}>referrals</div>
+            <div style={{ fontSize: '14px' }}>task points</div>
           </div>
           <div style={{
             background: 'rgba(255,255,255,0.3)',
@@ -236,9 +268,9 @@ export default function ProfilePage() {
             border: '3px solid #000',
           }}>
             <div style={{ fontSize: '28px', fontWeight: 'bold' }}>
-              {isWhitelisted ? '✅' : '❌'}
+              {profile.referrals_made || 0}
             </div>
-            <div style={{ fontSize: '14px' }}>whitelist</div>
+            <div style={{ fontSize: '14px' }}>referrals</div>
           </div>
         </div>
 
@@ -301,7 +333,12 @@ export default function ProfilePage() {
                 padding: '8px 0',
                 borderBottom: i < completedTasks.length - 1 ? '1px solid rgba(0,0,0,0.2)' : 'none',
               }}>
-                <span>✅ {task.task_type}</span>
+                <span>
+                  ✅ {task.task_type}
+                  {task.completion_count && task.completion_count > 1 && (
+                    <span style={{ fontSize: '12px', color: '#666' }}> (x{task.completion_count})</span>
+                  )}
+                </span>
                 <span>+{task.score} pts</span>
               </div>
             ))}

@@ -15,6 +15,7 @@ type Bubble = {
 
 const COLORS = ['#ff6b9d', '#ffd700', '#00ff00', '#00bfff', '#ff00ff', '#ffff00']
 const GAME_DURATION = 30
+const MAX_ATTEMPTS = 5
 
 export default function BubblePopGame() {
   const router = useRouter()
@@ -24,17 +25,47 @@ export default function BubblePopGame() {
   const [timeLeft, setTimeLeft] = useState(GAME_DURATION)
   const [bubbles, setBubbles] = useState<Bubble[]>([])
   const [showSharePrompt, setShowSharePrompt] = useState(false)
+  const [attemptsLeft, setAttemptsLeft] = useState<number | null>(null)
+  const [maxReached, setMaxReached] = useState(false)
+  const [pointsAdded, setPointsAdded] = useState(0)
   const containerRef = useRef<HTMLDivElement>(null)
   const animationRef = useRef<number>()
   const bubbleIdRef = useRef(0)
   const lastSpawnRef = useRef(0)
 
-  // Spawn new bubble
+  // Fetch current attempt count on mount
+  useEffect(() => {
+    const fetchAttempts = async () => {
+      if (!address) return
+      try {
+        const res = await fetch(`/api/tasks/${address}`)
+        if (res.ok) {
+          const data = await res.json()
+          const bubbleTask = data.tasks?.find((t: any) => t.task_type === 'bubble')
+          if (bubbleTask) {
+            const count = bubbleTask.completion_count || 1
+            setAttemptsLeft(MAX_ATTEMPTS - count)
+            if (count >= MAX_ATTEMPTS) {
+              setMaxReached(true)
+            }
+          } else {
+            setAttemptsLeft(MAX_ATTEMPTS)
+          }
+        }
+      } catch (e) {
+        console.error('Failed to fetch attempts:', e)
+      }
+    }
+    fetchAttempts()
+  }, [address])
+
+  // Spawn new bubble - bigger and slower for easier gameplay
   const spawnBubble = useCallback(() => {
     if (!containerRef.current) return null
 
     const width = containerRef.current.clientWidth
-    const size = 40 + Math.random() * 40
+    // Bigger bubbles (60-100px instead of 40-80px)
+    const size = 60 + Math.random() * 40
     const x = Math.random() * (width - size)
 
     return {
@@ -42,7 +73,8 @@ export default function BubblePopGame() {
       x,
       y: window.innerHeight,
       size,
-      speed: 2 + Math.random() * 3,
+      // Slower speed (1-2 instead of 2-5)
+      speed: 1 + Math.random() * 1,
       color: COLORS[Math.floor(Math.random() * COLORS.length)],
     }
   }, [])
@@ -52,8 +84,8 @@ export default function BubblePopGame() {
     if (gameState !== 'playing') return
 
     const gameLoop = (timestamp: number) => {
-      // Spawn bubbles every ~500ms
-      if (timestamp - lastSpawnRef.current > 500 - (score * 2)) {
+      // Spawn bubbles every ~800ms (slower spawn rate)
+      if (timestamp - lastSpawnRef.current > 800 - Math.min(score * 2, 300)) {
         const newBubble = spawnBubble()
         if (newBubble) {
           setBubbles(prev => [...prev, newBubble])
@@ -119,10 +151,12 @@ export default function BubblePopGame() {
   }
 
   const saveScore = async () => {
-    if (!address) return
+    if (!address) {
+      return
+    }
 
     try {
-      await fetch('/api/tasks/complete', {
+      const response = await fetch('/api/tasks/complete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -131,6 +165,15 @@ export default function BubblePopGame() {
           score: score,
         }),
       })
+      const result = await response.json()
+
+      if (result.max_reached) {
+        setMaxReached(true)
+        setPointsAdded(0)
+      } else if (result.success) {
+        setAttemptsLeft(result.attempts_left ?? null)
+        setPointsAdded(result.added || score)
+      }
     } catch (e) {
       console.error('Failed to save score:', e)
     }
@@ -140,7 +183,7 @@ export default function BubblePopGame() {
     if (gameState === 'finished' && address) {
       saveScore()
     }
-  }, [gameState, address])
+  }, [gameState, address, score])
 
   // Ready screen
   if (gameState === 'ready') {
@@ -176,6 +219,21 @@ export default function BubblePopGame() {
         }}>
           pop as many bubbles as u can in 30 seconds!
         </p>
+
+        {attemptsLeft !== null && (
+          <p style={{
+            fontSize: 'clamp(14px, 4vw, 18px)',
+            color: attemptsLeft > 0 ? '#006600' : '#cc0000',
+            marginBottom: '20px',
+            background: 'rgba(255,255,255,0.8)',
+            padding: '8px 16px',
+            borderRadius: '8px',
+          }}>
+            {attemptsLeft > 0
+              ? `${attemptsLeft}/${MAX_ATTEMPTS} attempts left for points`
+              : 'max attempts reached (no more points)'}
+          </p>
+        )}
 
         <button
           onClick={startGame}
@@ -256,31 +314,43 @@ export default function BubblePopGame() {
         </div>
       </div>
 
-      {/* Bubbles */}
+      {/* Bubbles - with larger clickable area */}
       {bubbles.map(bubble => (
         <div
           key={bubble.id}
           onClick={() => popBubble(bubble.id)}
           style={{
             position: 'absolute',
-            left: bubble.x,
-            top: bubble.y,
-            width: bubble.size,
-            height: bubble.size,
-            borderRadius: '50%',
-            background: `radial-gradient(circle at 30% 30%, white, ${bubble.color})`,
-            border: '3px solid rgba(255,255,255,0.5)',
+            // Offset to center the larger hitbox
+            left: bubble.x - 10,
+            top: bubble.y - 10,
+            // Larger clickable area (20px padding around bubble)
+            width: bubble.size + 20,
+            height: bubble.size + 20,
             cursor: 'pointer',
-            boxShadow: `0 0 20px ${bubble.color}`,
-            transition: 'transform 0.1s',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
           }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'scale(1.1)'
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'scale(1)'
-          }}
-        />
+        >
+          <div
+            style={{
+              width: bubble.size,
+              height: bubble.size,
+              borderRadius: '50%',
+              background: `radial-gradient(circle at 30% 30%, white, ${bubble.color})`,
+              border: '3px solid rgba(255,255,255,0.5)',
+              boxShadow: `0 0 20px ${bubble.color}`,
+              transition: 'transform 0.1s',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'scale(1.15)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'scale(1)'
+            }}
+          />
+        </div>
       ))}
 
       {/* Finished overlay */}
@@ -316,12 +386,29 @@ export default function BubblePopGame() {
             {score}
           </div>
 
-          <p style={{
+            <p style={{
             fontSize: '24px',
             color: '#fff',
+            marginBottom: '10px',
+          }}>
+            bubbles popped = {score}
+          </p>
+
+          <p style={{
+            fontSize: '20px',
+            color: maxReached ? '#ff6b6b' : '#00ff00',
             marginBottom: '30px',
           }}>
-            bubbles popped = {score} points!
+            {maxReached
+              ? 'max attempts reached (no points added)'
+              : pointsAdded > 0
+                ? `+${pointsAdded} points earned!`
+                : `+${score} points!`}
+            {attemptsLeft !== null && attemptsLeft > 0 && !maxReached && (
+              <span style={{ display: 'block', fontSize: '16px', marginTop: '5px' }}>
+                {attemptsLeft} attempts left
+              </span>
+            )}
           </p>
 
           <div style={{

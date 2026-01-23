@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import VotingCard from '@/components/VotingCard'
 import { getVoteResponse } from '@/lib/utils'
+import { useWallet } from '@/hooks/useWallet'
 
 type Submission = {
   id: string
@@ -14,17 +15,21 @@ type Submission = {
 }
 
 export default function VotePage() {
+  const { address: walletAddress } = useWallet()
   const [currentSubmission, setCurrentSubmission] = useState<Submission | null>(null)
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
   const [votedIds, setVotedIds] = useState<Set<string>>(new Set())
-  const [voterWallet, setVoterWallet] = useState<string | null>(null)
   const [showResponse, setShowResponse] = useState(false)
   const [voteResponseText, setVoteResponseText] = useState('')
   const [voteCount, setVoteCount] = useState(0)
+  const [totalVoteCount, setTotalVoteCount] = useState(0) // Track total from DB
+  const [showMilestone, setShowMilestone] = useState(false)
+  const [milestonePoints, setMilestonePoints] = useState(0)
   const [animationInterval] = useState(() => 5 + Math.floor(Math.random() * 3))
   const cachedIp = useRef<string | null>(null)
   const isLoadingRef = useRef(false)
+  const lastMilestoneRef = useRef(0) // Track last milestone achieved
 
   useEffect(() => {
     const savedVotedIds = localStorage.getItem('votedSubmissions')
@@ -42,9 +47,26 @@ export default function VotePage() {
       .then(data => { cachedIp.current = data.ip })
       .catch(() => { cachedIp.current = 'unknown' })
 
-    setVoterWallet(null)
     loadNextSubmission()
   }, [])
+
+  // Load existing vote count from task completions
+  useEffect(() => {
+    if (walletAddress) {
+      fetch(`/api/tasks/${walletAddress}`)
+        .then(res => res.json())
+        .then(data => {
+          const voteTask = data.tasks?.find((t: any) => t.task_type === 'vote')
+          if (voteTask) {
+            // Calculate how many 10-vote milestones achieved (score / 100)
+            const milestonesAchieved = Math.floor((voteTask.score || 0) / 100)
+            lastMilestoneRef.current = milestonesAchieved
+            setTotalVoteCount(milestonesAchieved * 10)
+          }
+        })
+        .catch(e => console.error('Failed to fetch vote task:', e))
+    }
+  }, [walletAddress])
 
   useEffect(() => {
     if (votedIds.size > 0) {
@@ -63,12 +85,20 @@ export default function VotePage() {
     try {
       // Combine votedIds with any additional excludes
       const allExcludeIds = new Set([...votedIds, ...(additionalExcludeIds || [])])
-      const excludeParam = Array.from(allExcludeIds).join(',')
-      const url = excludeParam 
-        ? `/api/vote/random?exclude=${encodeURIComponent(excludeParam)}`
-        : '/api/vote/random'
       
-      const response = await fetch(url)
+      // Build URL with exclude IDs and voter identifier
+      const params = new URLSearchParams()
+      if (allExcludeIds.size > 0) {
+        params.set('exclude', Array.from(allExcludeIds).join(','))
+      }
+      // Pass voter identifier so API can also filter by database votes
+      const voter = walletAddress || cachedIp.current
+      if (voter) {
+        params.set('voter', voter)
+      }
+      
+      const url = `/api/vote/random${params.toString() ? '?' + params.toString() : ''}`
+      const response = await fetch(url, { cache: 'no-store' })
 
       if (!response.ok) {
         if (response.status === 404) {
@@ -95,7 +125,7 @@ export default function VotePage() {
     }
   }
 
-  const handleVote = (voteType: 'upvote' | 'downvote') => {
+  const handleVote = async (voteType: 'upvote' | 'downvote') => {
     if (!currentSubmission) return
 
     const submissionId = currentSubmission.id
@@ -109,7 +139,6 @@ export default function VotePage() {
     setVoteCount(newVoteCount)
 
     // Fire vote API in background
-    // Server will fall back to request IP if voter_identifier is missing
     const ip = cachedIp.current
     fetch('/api/vote', {
       method: 'POST',
@@ -117,8 +146,8 @@ export default function VotePage() {
       body: JSON.stringify({
         submission_id: submissionId,
         vote_type: voteType,
-        voter_identifier: voterWallet || ip || undefined,
-        voter_wallet: voterWallet
+        voter_identifier: walletAddress || ip || undefined,
+        voter_wallet: walletAddress || undefined
       })
     })
       .then(res => {
@@ -130,8 +159,38 @@ export default function VotePage() {
       })
       .catch(err => console.error('Vote network error:', err))
 
-    // Show response overlay every 5-7 votes
-    if (newVoteCount % animationInterval === 0) {
+    // Check for 10-vote milestone (every 10 votes in this session)
+    const totalVotes = totalVoteCount + newVoteCount
+    const currentMilestone = Math.floor(totalVotes / 10)
+    
+    if (currentMilestone > lastMilestoneRef.current && walletAddress) {
+      // New milestone reached! Award 100 points
+      lastMilestoneRef.current = currentMilestone
+      setMilestonePoints(100)
+      setShowMilestone(true)
+      
+      // Save to task completions (adds 100 points per milestone)
+      try {
+        await fetch('/api/tasks/complete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            wallet_address: walletAddress,
+            task_type: 'vote',
+            score: 100,
+          })
+        })
+      } catch (e) {
+        console.error('Failed to save vote milestone:', e)
+      }
+
+      // Hide milestone after 2.5 seconds
+      setTimeout(() => {
+        setShowMilestone(false)
+        loadNextSubmission(newVotedIds)
+      }, 2500)
+    } else if (newVoteCount % animationInterval === 0) {
+      // Show regular response overlay every 5-7 votes
       const responseText = getVoteResponse()
       setVoteResponseText(responseText)
       setShowResponse(true)
@@ -225,10 +284,70 @@ export default function VotePage() {
         }}>
           help us find da best savants
         </p>
+        {!walletAddress && (
+          <p style={{
+            fontSize: '14px',
+            color: '#fff',
+            background: '#ff6b9d',
+            padding: '6px 12px',
+            border: '2px solid #000',
+            marginTop: '8px',
+          }}>
+            connect wallet 2 earn points 4 voting!
+          </p>
+        )}
       </div>
 
+      {/* Milestone celebration overlay */}
+      {showMilestone && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          background: 'rgba(0, 0, 0, 0.9)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1001,
+        }}>
+          <div style={{
+            fontSize: 'clamp(48px, 15vw, 80px)',
+            marginBottom: '20px',
+          }}>
+            🎉
+          </div>
+          <div style={{
+            fontSize: 'clamp(28px, 8vw, 48px)',
+            color: '#00ff00',
+            textShadow: '3px 3px 0 #000',
+            marginBottom: '15px',
+            textAlign: 'center',
+          }}>
+            10 VOTES MILESTONE!
+          </div>
+          <div style={{
+            fontSize: 'clamp(36px, 10vw, 64px)',
+            color: '#ffff00',
+            textShadow: '3px 3px 0 #000',
+            fontWeight: 'bold',
+          }}>
+            +{milestonePoints} points!
+          </div>
+          <div style={{
+            fontSize: '18px',
+            color: '#fff',
+            marginTop: '20px',
+          }}>
+            keep voting 4 more points!
+          </div>
+        </div>
+      )}
+
       {/* Vote response overlay */}
-      {showResponse && (
+      {showResponse && !showMilestone && (
         <div style={{
           position: 'fixed',
           top: '50%',

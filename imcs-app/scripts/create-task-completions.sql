@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS task_completions (
   wallet_address TEXT NOT NULL,
   task_type TEXT NOT NULL,
   score INTEGER DEFAULT 0,
+  completion_count INTEGER DEFAULT 1,
   completed_at TIMESTAMP DEFAULT NOW(),
   UNIQUE(wallet_address, task_type)
 );
@@ -16,6 +17,17 @@ CREATE INDEX IF NOT EXISTS idx_task_completions_wallet ON task_completions(walle
 
 -- Index for task type queries
 CREATE INDEX IF NOT EXISTS idx_task_completions_type ON task_completions(task_type);
+
+-- ============================================
+-- MIGRATION: Add completion_count column if missing
+-- ============================================
+-- Run this if you already have the table but need the new column:
+
+-- Step 1: Add the column (PostgreSQL syntax)
+ALTER TABLE task_completions ADD COLUMN IF NOT EXISTS completion_count INTEGER DEFAULT 1;
+
+-- Step 2: Set default value for existing rows that have NULL
+UPDATE task_completions SET completion_count = 1 WHERE completion_count IS NULL;
 
 -- Example task types:
 -- 'circle' - Circle drawing test (100-300 pts based on accuracy)

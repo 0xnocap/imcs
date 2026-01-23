@@ -6,9 +6,10 @@ import { calculateCircleAccuracy, Point } from '@/lib/utils'
 type CircleDrawingProps = {
   onSubmit: (score: number, accuracy: number) => void
   onGiveUp: () => void
+  attemptsInfo?: string
 }
 
-export default function CircleDrawing({ onSubmit, onGiveUp }: CircleDrawingProps) {
+export default function CircleDrawing({ onSubmit, onGiveUp, attemptsInfo }: CircleDrawingProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [isDrawing, setIsDrawing] = useState(false)
   const [hasDrawn, setHasDrawn] = useState(false)
@@ -224,6 +225,25 @@ export default function CircleDrawing({ onSubmit, onGiveUp }: CircleDrawingProps
       justifyContent: 'center',
       zIndex: 9999
     }}>
+      {/* Attempts info (top) */}
+      {attemptsInfo && (
+        <div style={{
+          position: 'absolute',
+          top: '20px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          fontSize: 'clamp(14px, 4vw, 18px)',
+          color: '#ffff00',
+          textShadow: '2px 2px 0 #000',
+          background: 'rgba(0,0,0,0.5)',
+          padding: '8px 16px',
+          borderRadius: '8px',
+          zIndex: 10
+        }}>
+          {attemptsInfo}
+        </div>
+      )}
+
       {/* Instructions or score display */}
       {!hasDrawn && !isDrawing && (
         <div style={{

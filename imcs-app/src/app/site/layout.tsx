@@ -14,11 +14,10 @@ type NavButton = {
 }
 
 const navButtons: NavButton[] = [
-  { id: 'home', label: 'hoem', path: '/site', defaultPos: { x: 20, y: 15 } },
-  { id: 'tasks', label: 'tasks', path: '/site/tasks', defaultPos: { x: 120, y: 15 } },
-  { id: 'vote', label: 'vote', path: '/site/vote', defaultPos: { x: 220, y: 15 } },
-  { id: 'leaderboard', label: 'leederbord', path: '/site/leaderboard', defaultPos: { x: 320, y: 15 } },
-  { id: 'profile', label: 'profil', path: '/site/profile', defaultPos: { x: 480, y: 15 } },
+  { id: 'home', label: 'hoem', path: '/site', defaultPos: { x: 30, y: 15 } },
+  { id: 'tasks', label: 'tu doo', path: '/site/tasks', defaultPos: { x: 140, y: 15 } },
+  { id: 'leaderboard', label: 'leederbord', path: '/site/leaderboard', defaultPos: { x: 280, y: 15 } },
+  { id: 'profile', label: 'profil', path: '/site/profile', defaultPos: { x: 460, y: 15 } },
 ]
 
 export default function SiteLayout({ children }: { children: ReactNode }) {

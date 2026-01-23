@@ -1,199 +1,232 @@
 'use client'
 
-import { useState } from 'react'
-import CircleDrawing from '@/components/gates/CircleDrawing'
-import TypingTest from '@/components/gates/TypingTest'
+import { useState, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { useWallet } from '@/hooks/useWallet'
 import { submitForm } from '@/lib/api-client'
 import { isValidAddress } from '@/lib/utils'
+import ConnectWallet from '@/components/ConnectWallet'
 
-type Stage = 'initial' | 'wallet-check' | 'circle-test' | 'typing-test' | 'add-to-wallet' | 'form' | 'success'
+function SubmitPageContent() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const { address, isConnected, truncatedAddress } = useWallet()
 
-export default function SubmitPage() {
-  const [stage, setStage] = useState<Stage>('initial')
-  const [walletInput, setWalletInput] = useState('')
-  const [walletInfo, setWalletInfo] = useState<any>(null)
-  const [earnedPoints, setEarnedPoints] = useState(0)
-  const [earnedAccuracy, setEarnedAccuracy] = useState(0)
-  const [formData, setFormData] = useState({ name: '', wallet: '', info: '' })
+  const [formData, setFormData] = useState({ name: '', info: '' })
+  const [referralCode, setReferralCode] = useState('')
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
+  const [checkingProfile, setCheckingProfile] = useState(true)
+  const [hasProfile, setHasProfile] = useState(false)
+  const [submittedCode, setSubmittedCode] = useState<string | null>(null)
 
-  // Initial screen: 2 options
-  const renderInitial = () => (
-    <div className="page active">
-      <div className="form-container" style={{ maxWidth: '600px', margin: '50px auto' }}>
-        <h2 className="form-title">savaant lissst</h2>
-        <p style={{ fontSize: '20px', textAlign: 'center', marginBottom: '30px' }}>
-          wut u wanna do?
-        </p>
+  // Check for referral code in URL params or localStorage
+  useEffect(() => {
+    // First check URL params
+    const refCode = searchParams.get('ref')
+    if (refCode) {
+      setReferralCode(refCode.toUpperCase())
+      // Also store in localStorage for persistence
+      localStorage.setItem('referralCode', refCode.toUpperCase())
+    } else {
+      // Check localStorage (may have been set on landing page)
+      const storedRef = localStorage.getItem('referralCode')
+      if (storedRef) {
+        setReferralCode(storedRef)
+      }
+    }
+  }, [searchParams])
 
-        <button
-          className="submit-btn"
-          onClick={() => setStage('wallet-check')}
-          style={{ marginBottom: '20px' }}
-        >
-          check wallet
-        </button>
+  // Check if user already has a profile when wallet connects
+  useEffect(() => {
+    if (isConnected && address) {
+      checkExistingProfile()
+    } else {
+      setCheckingProfile(false)
+    }
+  }, [isConnected, address])
 
-        <button
-          className="submit-btn"
-          onClick={() => setStage('circle-test')}
-        >
-          proov i em savaant
-        </button>
-      </div>
-    </div>
-  )
+  const checkExistingProfile = async () => {
+    if (!address) return
+    setCheckingProfile(true)
 
-  // Wallet check
-  const renderWalletCheck = () => (
-    <div className="page active">
-      <div className="form-container">
-        <h2 className="form-title">check wallet</h2>
-        <p style={{ fontSize: '18px', marginBottom: '20px', textAlign: 'center' }}>
-          paste ur wallut adress 2 c if ur on da lissst
-        </p>
+    try {
+      const response = await fetch(`/api/profile/${address}`)
+      if (response.ok) {
+        setHasProfile(true)
+        // User already registered - redirect to tasks
+        router.push('/site/tasks')
+      } else {
+        setHasProfile(false)
+      }
+    } catch (e) {
+      setHasProfile(false)
+    }
 
-        <div className="form-group">
-          <input
-            type="text"
-            value={walletInput}
-            onChange={(e) => setWalletInput(e.target.value)}
-            placeholder="0x..."
-            style={{ marginBottom: '20px' }}
-          />
+    setCheckingProfile(false)
+  }
+
+  const handleSubmit = async () => {
+    if (!address) {
+      setMessage('connect ur wallut first dummie')
+      return
+    }
+
+    if (!formData.name || !formData.info) {
+      setMessage('fill out all fields dummie')
+      return
+    }
+
+    setLoading(true)
+    setMessage('')
+
+    try {
+      const result = await submitForm({
+        wallet_address: address,
+        name: formData.name,
+        info: formData.info,
+        referrer_code: referralCode || undefined,
+      })
+
+      if (result.success) {
+        // Clear the referral code from localStorage (it's been used)
+        localStorage.removeItem('referralCode')
+
+        // Generate referral code from wallet
+        const newCode = address.slice(2, 10).toUpperCase()
+        setSubmittedCode(newCode)
+
+        // Mark submit task as complete
+        try {
+          await fetch('/api/tasks/complete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              wallet_address: address,
+              task_type: 'submit',
+              score: 150,
+            }),
+          })
+        } catch (e) {
+          console.error('Failed to record task completion:', e)
+        }
+      }
+    } catch (error: any) {
+      setMessage(error.message || 'submission failed')
+    }
+
+    setLoading(false)
+  }
+
+  const copyReferralLink = () => {
+    if (submittedCode) {
+      navigator.clipboard.writeText(`https://imcs.world?ref=${submittedCode}`)
+      alert('copied 2 clipboard!')
+    }
+  }
+
+  // Loading state while checking profile
+  if (checkingProfile) {
+    return (
+      <div className="page active">
+        <div className="form-container" style={{ textAlign: 'center', padding: '60px 20px' }}>
+          <h2 className="form-title">checking...</h2>
+          <div style={{ fontSize: '48px' }}>⏳</div>
         </div>
-
-        <button
-          className="submit-btn"
-          onClick={handleWalletCheck}
-          disabled={loading}
-          style={{ marginBottom: '15px' }}
-        >
-          {loading ? 'checking...' : 'check'}
-        </button>
-
-        <button
-          onClick={() => setStage('initial')}
-          style={{
-            width: '100%',
-            fontFamily: 'Comic Neue, cursive',
-            fontSize: '18px',
-            padding: '10px',
-            background: '#ccc',
-            border: '3px solid #000',
-            cursor: 'pointer'
-          }}
-        >
-          bak
-        </button>
-
-        {message && (
-          <div style={{
-            marginTop: '20px',
-            padding: '20px',
-            background: walletInfo ? '#d4edda' : '#f8d7da',
-            border: '3px solid #000',
-            fontSize: '18px'
-          }}>
-            {message}
-          </div>
-        )}
-
-        {walletInfo && (
-          <div style={{ marginTop: '20px' }}>
-            <button
-              className="submit-btn"
-              onClick={() => setStage('circle-test')}
-            >
-              proov i em savaant 4 bonus points
-            </button>
-          </div>
-        )}
       </div>
-    </div>
-  )
+    )
+  }
 
-  // Circle test
-  const renderCircleTest = () => (
-    <CircleDrawing
-      onSubmit={handleCircleSubmit}
-      onGiveUp={handleCircleGiveUp}
-    />
-  )
+  // Not connected state
+  if (!isConnected) {
+    return (
+      <div className="page active">
+        <div className="form-container" style={{ textAlign: 'center', padding: '40px 20px' }}>
+          <h2 className="form-title">becum savant</h2>
+          <p style={{ fontSize: '20px', marginBottom: '30px' }}>
+            connect ur wallut 2 register
+          </p>
+          <ConnectWallet label="connect wallut" />
 
-  // Typing test (fallback when user gives up on circle)
-  const renderTypingTest = () => (
-    <TypingTest onSuccess={handleTypingSuccess} />
-  )
-
-  // Add points to existing wallet
-  const renderAddToWallet = () => (
-    <div className="page active">
-      <div className="form-container">
-        <h2 className="form-title">add {earnedPoints} points</h2>
-        <p style={{ fontSize: '18px', marginBottom: '20px', textAlign: 'center' }}>
-          paste ur wallut adress 2 add {earnedPoints} points
-        </p>
-
-        <div className="form-group">
-          <input
-            type="text"
-            value={walletInput}
-            onChange={(e) => setWalletInput(e.target.value)}
-            placeholder="0x..."
-          />
+          {/* Show referral code if present */}
+          {referralCode && (
+            <p style={{
+              marginTop: '20px',
+              fontSize: '16px',
+              color: '#00ff00',
+            }}>
+              ✨ using referral code: {referralCode}
+            </p>
+          )}
         </div>
-
-        <button
-          className="submit-btn"
-          onClick={handleAddPoints}
-          disabled={loading}
-          style={{ marginBottom: '15px' }}
-        >
-          {loading ? 'adding...' : 'add points'}
-        </button>
-
-        <button
-          onClick={() => setStage('initial')}
-          style={{
-            width: '100%',
-            fontFamily: 'Comic Neue, cursive',
-            fontSize: '18px',
-            padding: '10px',
-            background: '#ccc',
-            border: '3px solid #000',
-            cursor: 'pointer'
-          }}
-        >
-          bak
-        </button>
-
-        {message && (
-          <div style={{
-            marginTop: '20px',
-            padding: '20px',
-            background: '#f8d7da',
-            border: '3px solid #000',
-            fontSize: '18px'
-          }}>
-            {message}
-          </div>
-        )}
       </div>
-    </div>
-  )
+    )
+  }
 
-  // Full submission form
-  const renderForm = () => (
+  // Success state
+  if (submittedCode) {
+    return (
+      <div className="page active">
+        <div className="success-message">
+          <h2>🎉 CONGRAAAATS! 🎉</h2>
+          <p>ur now on da savant lissst!</p>
+          <p style={{ marginTop: '15px' }}>+150 points earned!</p>
+
+          <p style={{ marginTop: '20px' }}>share ur referral code 2 get bonus points:</p>
+          <div style={{
+            fontFamily: 'monospace',
+            fontSize: '28px',
+            background: '#fff',
+            padding: '15px',
+            border: '3px solid #000',
+            margin: '15px 0',
+            letterSpacing: '2px'
+          }}>
+            {submittedCode}
+          </div>
+
+          <button
+            onClick={copyReferralLink}
+            style={{
+              fontFamily: 'Comic Neue, cursive',
+              fontSize: '16px',
+              padding: '10px 20px',
+              background: '#ffff00',
+              border: '3px solid #000',
+              cursor: 'pointer',
+              marginBottom: '20px',
+            }}
+          >
+            copy referral link
+          </button>
+
+          <button
+            className="submit-btn"
+            onClick={() => router.push('/site/tasks')}
+          >
+            do more tasks 4 points
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // Registration form
+  return (
     <div className="page active">
       <div className="form-container">
         <h2 className="form-title">becum savant</h2>
-        {earnedPoints > 0 && (
-          <p style={{ fontSize: '18px', textAlign: 'center', marginBottom: '20px', color: '#00ff00' }}>
-            starting with {earnedPoints} points from circle test! ✨
-          </p>
-        )}
+
+        <p style={{
+          fontSize: '16px',
+          textAlign: 'center',
+          marginBottom: '20px',
+          background: '#fff',
+          padding: '10px',
+          border: '2px solid #000',
+        }}>
+          connected: {truncatedAddress}
+        </p>
 
         <div className="form-group">
           <label>ur naem:</label>
@@ -202,16 +235,6 @@ export default function SubmitPage() {
             value={formData.name}
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
             placeholder="wat do we cal u?"
-          />
-        </div>
-
-        <div className="form-group">
-          <label>ur wallut adress:</label>
-          <input
-            type="text"
-            value={formData.wallet}
-            onChange={(e) => setFormData({ ...formData, wallet: e.target.value })}
-            placeholder="0x..."
           />
         </div>
 
@@ -233,12 +256,23 @@ export default function SubmitPage() {
           />
         </div>
 
+        <div className="form-group">
+          <label>referral code (optional):</label>
+          <input
+            type="text"
+            value={referralCode}
+            onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+            placeholder="got a code from a frend?"
+            style={{ textTransform: 'uppercase' }}
+          />
+        </div>
+
         <button
           className="submit-btn"
-          onClick={handleFormSubmit}
+          onClick={handleSubmit}
           disabled={loading}
         >
-          {loading ? 'submitting...' : 'submit'}
+          {loading ? 'submitting...' : 'submit (+150 pts)'}
         </button>
 
         {message && (
@@ -255,202 +289,20 @@ export default function SubmitPage() {
       </div>
     </div>
   )
+}
 
-  // Success screen
-  const renderSuccess = () => (
-    <div className="page active">
-      <div className="success-message">
-        <h2>🎉 CONGRAAAATS! 🎉</h2>
-        <p>ur now on da savant lissst!</p>
-        <p>share ur referral code 2 get bonus points:</p>
-        <div style={{
-          fontFamily: 'monospace',
-          fontSize: '28px',
-          background: '#fff',
-          padding: '15px',
-          border: '3px solid #000',
-          margin: '20px 0',
-          letterSpacing: '2px'
-        }}>
-          {walletInfo?.referrer_code || 'LOADING...'}
+// Wrap in Suspense for useSearchParams
+export default function SubmitPage() {
+  return (
+    <Suspense fallback={
+      <div className="page active">
+        <div className="form-container" style={{ textAlign: 'center', padding: '60px 20px' }}>
+          <h2 className="form-title">loading...</h2>
+          <div style={{ fontSize: '48px' }}>⏳</div>
         </div>
-        <button
-          className="submit-btn"
-          onClick={() => window.location.href = '/site/vote'}
-        >
-          vote on other savants
-        </button>
       </div>
-    </div>
+    }>
+      <SubmitPageContent />
+    </Suspense>
   )
-
-  // Handlers
-  const handleWalletCheck = async () => {
-    if (!isValidAddress(walletInput)) {
-      setMessage('invalid wallet address dummie')
-      return
-    }
-
-    setLoading(true)
-    setMessage('')
-
-    try {
-      const response = await fetch(`/api/profile/${walletInput}`)
-
-      if (response.ok) {
-        const data = await response.json()
-        setWalletInfo(data)
-        setMessage(`✅ ur on da lissst! rank: ${data.rank || '?'} | score: ${data.submission_score}`)
-      } else {
-        setWalletInfo(null)
-        setMessage('❌ ur wallet not on da lissst yet. proov i em savaant to get on!')
-      }
-    } catch (error) {
-      setMessage('error checking wallet')
-    }
-
-    setLoading(false)
-  }
-
-  const handleCircleSubmit = (score: number, accuracy: number) => {
-    setEarnedPoints(score)
-    setEarnedAccuracy(accuracy)
-    setStage('add-to-wallet')
-  }
-
-  const handleCircleGiveUp = () => {
-    // User gave up on circle test, send to typing test
-    setStage('typing-test')
-  }
-
-  const handleTypingSuccess = (points: number, wpm: number) => {
-    // Typing test passed - award points based on WPM
-    setEarnedPoints(points)
-    setEarnedAccuracy(wpm) // Store WPM as "accuracy" for consistency
-    setStage('add-to-wallet')
-  }
-
-  const handleAddPoints = async () => {
-    if (!isValidAddress(walletInput)) {
-      setMessage('invalid wallet address')
-      return
-    }
-
-    setLoading(true)
-    setMessage('')
-
-    try {
-      // Check if wallet exists
-      const checkResponse = await fetch(`/api/profile/${walletInput}`)
-
-      if (checkResponse.ok) {
-        // Wallet exists - add points via bonus endpoint
-        const bonusResponse = await fetch('/api/bonus/circle', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            wallet_address: walletInput,
-            bonus_points: earnedPoints,
-            accuracy: earnedAccuracy
-          })
-        })
-
-        const bonusResult = await bonusResponse.json()
-
-        if (bonusResult.success) {
-          setWalletInfo({ ...walletInfo, referrer_code: 'EXISTING' })
-          setMessage(`✅ ${bonusResult.message}`)
-          setTimeout(() => setStage('success'), 1500)
-        } else {
-          setMessage(`❌ ${bonusResult.error}`)
-        }
-      } else {
-        // Wallet doesn't exist
-        setMessage('❌ dat wallut not on lissst. u need 2 fell owt forhm first!')
-        setTimeout(() => {
-          setFormData({ ...formData, wallet: walletInput })
-          setStage('form')
-        }, 2000)
-      }
-    } catch (error) {
-      setMessage('error adding points')
-    }
-
-    setLoading(false)
-  }
-
-  const handleFormSubmit = async () => {
-    if (!formData.name || !formData.wallet || !formData.info) {
-      setMessage('fill out all fields dummie')
-      return
-    }
-
-    if (!isValidAddress(formData.wallet)) {
-      setMessage('invalid wallet address')
-      return
-    }
-
-    setLoading(true)
-    setMessage('')
-
-    try {
-      const result = await submitForm({
-        wallet_address: formData.wallet,
-        name: formData.name,
-        info: formData.info
-      })
-
-      if (result.success) {
-        setWalletInfo(result.submission)
-
-        // If they earned points from circle test, add them
-        if (earnedPoints > 0) {
-          try {
-            const bonusResponse = await fetch('/api/bonus/circle', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                wallet_address: formData.wallet,
-                bonus_points: earnedPoints,
-                accuracy: earnedAccuracy
-              })
-            })
-
-            const bonusResult = await bonusResponse.json()
-            if (bonusResult.success) {
-              console.log(`Added ${earnedPoints} bonus points from circle test`)
-            }
-          } catch (error) {
-            console.error('Failed to add bonus points:', error)
-          }
-        }
-
-        setStage('success')
-      }
-    } catch (error: any) {
-      setMessage(error.message || 'submission failed')
-    }
-
-    setLoading(false)
-  }
-
-  // Render current stage
-  switch (stage) {
-    case 'initial':
-      return renderInitial()
-    case 'wallet-check':
-      return renderWalletCheck()
-    case 'circle-test':
-      return renderCircleTest()
-    case 'typing-test':
-      return renderTypingTest()
-    case 'add-to-wallet':
-      return renderAddToWallet()
-    case 'form':
-      return renderForm()
-    case 'success':
-      return renderSuccess()
-    default:
-      return renderInitial()
-  }
 }

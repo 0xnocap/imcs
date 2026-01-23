@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export async function GET(
   request: NextRequest,
   { params }: { params: { wallet: string } }
@@ -8,10 +11,10 @@ export async function GET(
   try {
     const wallet = params.wallet.toLowerCase()
 
-    // Query task_completions table
+    // Query task_completions table (including completion_count)
     const { data: tasks, error } = await supabase
       .from('task_completions')
-      .select('*')
+      .select('task_type, score, completion_count, completed_at')
       .eq('wallet_address', wallet)
       .order('completed_at', { ascending: false })
 
@@ -21,7 +24,13 @@ export async function GET(
       return NextResponse.json({ tasks: [] })
     }
 
-    return NextResponse.json({ tasks: tasks || [] })
+    // Ensure completion_count has a default value
+    const tasksWithCount = (tasks || []).map(t => ({
+      ...t,
+      completion_count: t.completion_count || 1
+    }))
+
+    return NextResponse.json({ tasks: tasksWithCount })
   } catch (error) {
     console.error('Tasks fetch error:', error)
     return NextResponse.json(

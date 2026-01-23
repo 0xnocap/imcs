@@ -13,12 +13,10 @@ function getClientIP(request: NextRequest): string {
   return '0.0.0.0'
 }
 
-// Helper to generate referral code
+// Helper to generate referral code - must match profile page display
+// Uses chars 2-10 of wallet address (after 0x)
 function generateReferralCode(walletAddress: string): string {
-  // Take last 6 chars of wallet + random 4 chars
-  const walletPart = walletAddress.slice(-6)
-  const randomPart = Math.random().toString(36).substring(2, 6)
-  return `${walletPart}${randomPart}`.toUpperCase()
+  return walletAddress.slice(2, 10).toUpperCase()
 }
 
 export async function POST(request: NextRequest) {
