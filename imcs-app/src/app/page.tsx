@@ -1,14 +1,23 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
-import { useState, useEffect, useRef } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { useState, useEffect, useRef, Suspense } from 'react'
 
-export default function SplashScreen() {
+function SplashScreenContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 })
   const irisLeftRef = useRef<HTMLImageElement>(null)
   const irisRightRef = useRef<HTMLImageElement>(null)
   const eyesWrapperRef = useRef<HTMLDivElement>(null)
+
+  // Capture referral code from URL and store in localStorage
+  useEffect(() => {
+    const refCode = searchParams.get('ref')
+    if (refCode) {
+      localStorage.setItem('referralCode', refCode.toUpperCase())
+    }
+  }, [searchParams])
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -108,5 +117,18 @@ export default function SplashScreen() {
         walcum tu savant wurld
       </button>
     </div>
+  )
+}
+
+// Wrap in Suspense for useSearchParams
+export default function SplashScreen() {
+  return (
+    <Suspense fallback={
+      <div id="splash" style={{ background: '#000' }}>
+        <div style={{ color: '#fff', fontSize: '24px' }}>loading...</div>
+      </div>
+    }>
+      <SplashScreenContent />
+    </Suspense>
   )
 }

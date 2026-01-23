@@ -11,11 +11,20 @@ const TRACKS = [
 
 export default function MusicPlayer() {
   const audioRef = useRef<HTMLAudioElement>(null)
-  // Start at a random track index
-  const [currentTrackIndex, setCurrentTrackIndex] = useState(() => Math.floor(Math.random() * TRACKS.length))
+  // Start with first track (fixed for SSR), randomize on client mount
+  const [currentTrackIndex, setCurrentTrackIndex] = useState(0)
+  const [isClient, setIsClient] = useState(false)
   const [hasStarted, setHasStarted] = useState(false)
 
+  // Randomize track on client mount only (avoids hydration mismatch)
   useEffect(() => {
+    setIsClient(true)
+    setCurrentTrackIndex(Math.floor(Math.random() * TRACKS.length))
+  }, [])
+
+  useEffect(() => {
+    if (!isClient) return
+
     // Try to auto-play on mount
     const audio = audioRef.current
     if (audio) {
@@ -31,8 +40,6 @@ export default function MusicPlayer() {
           })
           .catch(() => {
             // Auto-play was prevented, wait for user interaction
-            console.log('Auto-play prevented, waiting for user interaction')
-
             // Add click listener to start music on first interaction
             const startMusic = () => {
               audio.play()
@@ -44,12 +51,17 @@ export default function MusicPlayer() {
           })
       }
     }
-  }, [])
+  }, [isClient])
 
   const handleTrackEnd = () => {
     // Move to next track
     const nextIndex = (currentTrackIndex + 1) % TRACKS.length
     setCurrentTrackIndex(nextIndex)
+  }
+
+  // Don't render audio until client-side to avoid hydration mismatch
+  if (!isClient) {
+    return null
   }
 
   return (

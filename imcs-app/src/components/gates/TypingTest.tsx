@@ -5,6 +5,7 @@ import { calculateWPM, getTypingSuccessMessage, getTypingFailMessage } from '@/l
 
 type TypingTestProps = {
   onSuccess: (points: number, wpm: number) => void
+  attemptsInfo?: string
 }
 
 const TARGET_TEXT = "i wish i was autistic...in like a super hacker programmer type of way...seeing lines of code like a rainman of the matrix. like an imaginary magic crypto savant"
@@ -20,7 +21,7 @@ const calculatePoints = (wpm: number): number => {
   return 0
 }
 
-export default function TypingTest({ onSuccess }: TypingTestProps) {
+export default function TypingTest({ onSuccess, attemptsInfo }: TypingTestProps) {
   const [userInput, setUserInput] = useState('')
   const [startTime, setStartTime] = useState<number | null>(null)
   const [wpm, setWpm] = useState(0)
@@ -171,6 +172,22 @@ export default function TypingTest({ onSuccess }: TypingTestProps) {
       }}>
         IMCS TYPEEN TEHST ACTUHVAYTID
       </div>
+
+      {/* Attempts info */}
+      {attemptsInfo && (
+        <div style={{
+          fontSize: 'clamp(12px, 3vw, 16px)',
+          color: '#ffff00',
+          textShadow: '1px 1px 0 #000',
+          marginBottom: '10px',
+          textAlign: 'center',
+          background: 'rgba(0,0,0,0.5)',
+          padding: '6px 12px',
+          borderRadius: '6px',
+        }}>
+          {attemptsInfo}
+        </div>
+      )}
 
       {/* Message */}
       <div style={{
