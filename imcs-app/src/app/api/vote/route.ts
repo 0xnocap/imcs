@@ -1,9 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { calculateVoteWeight, getVoteResponse } from '@/lib/utils'
+import { rateLimit, getRequestIP } from '@/lib/rate-limit'
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limit: 30 votes per minute per IP
+    const ip = getRequestIP(request)
+    const rl = rateLimit(`vote:${ip}`, { limit: 30, windowMs: 60_000 })
+    if (!rl.success) {
+      return NextResponse.json(
+        { error: 'ur voting 2 fast, chill' },
+        { status: 429, headers: { 'Retry-After': String(rl.retryAfter) } }
+      )
+    }
     const body = await request.json()
     // Support both naming conventions (submission_id or submissionId, etc.)
     const submissionId = body.submission_id || body.submissionId

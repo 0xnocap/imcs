@@ -53,21 +53,13 @@ export default function LeaderboardPage() {
 
   useEffect(() => {
     loadData()
-
-    // Auto-refresh every 30 seconds
-    const interval = setInterval(loadData, 30000)
-    return () => clearInterval(interval)
   }, [])
 
   const loadData = async () => {
     setLoading(true)
 
     try {
-      // Request top 1000 to ensure we get all users
-      const response = await fetch('/api/leaderboard/submissions?limit=1000', {
-        cache: 'no-store',
-        headers: { 'Cache-Control': 'no-cache' }
-      })
+      const response = await fetch('/api/leaderboard/submissions?limit=100')
       if (response.ok) {
         const data = await response.json()
         setSubmissions(data)

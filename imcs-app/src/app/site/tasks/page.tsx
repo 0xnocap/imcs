@@ -96,32 +96,15 @@ export default function TasksPage() {
     }
   }, [isConnected, address])
 
-  // Refetch when page gains focus (user navigates back from a game)
-  useEffect(() => {
-    const handleFocus = () => {
-      if (isConnected && address) {
-        fetchAllData()
-      }
-    }
-
-    window.addEventListener('focus', handleFocus)
-    return () => window.removeEventListener('focus', handleFocus)
-  }, [isConnected, address])
 
   const fetchAllData = async () => {
     if (!address) return
 
     try {
-      // Fetch both profile and tasks in parallel with no caching
+      // Fetch both profile and tasks in parallel
       const [profileRes, tasksRes] = await Promise.all([
-        fetch(`/api/profile/${address}`, {
-          cache: 'no-store',
-          headers: { 'Cache-Control': 'no-cache' }
-        }),
-        fetch(`/api/tasks/${address}`, {
-          cache: 'no-store',
-          headers: { 'Cache-Control': 'no-cache' }
-        })
+        fetch(`/api/profile/${address}`),
+        fetch(`/api/tasks/${address}`)
       ])
 
       // Process profile data - use API's pre-calculated total_points

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
+import { rateLimit, getRequestIP } from '@/lib/rate-limit'
 
 export const dynamic = 'force-dynamic'
 
@@ -8,6 +9,15 @@ export const dynamic = 'force-dynamic'
  */
 export async function GET(request: NextRequest) {
   try {
+    // Rate limit: 20 requests per minute per IP
+    const ip = getRequestIP(request)
+    const rl = rateLimit(`wl-status:${ip}`, { limit: 20, windowMs: 60_000 })
+    if (!rl.success) {
+      return NextResponse.json(
+        { error: 'slow down dummie' },
+        { status: 429, headers: { 'Retry-After': String(rl.retryAfter) } }
+      )
+    }
     const wallet = request.nextUrl.searchParams.get('wallet')?.toLowerCase()
 
     if (!wallet) {

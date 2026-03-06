@@ -49,13 +49,13 @@ function HomePageInner() {
     return null
   })
 
-  // Fetch WL count if not preloaded by splash
+  // Fetch WL count if not preloaded by splash (lightweight endpoint)
   useEffect(() => {
     if (wlCount !== null) return // already have it
-    fetch('/api/leaderboard/submissions?limit=1000', { cache: 'no-store' })
+    fetch('/api/stats/wl-count')
       .then(r => r.json())
       .then(data => {
-        const count = Array.isArray(data) ? data.filter((u: any) => u.whitelist_status === 'approved').length : 0
+        const count = data.count || 0
         setWlCount(count)
         sessionStorage.setItem('wlCount', String(count))
       })
@@ -71,10 +71,7 @@ function HomePageInner() {
     if (!address) return
     setStep('loading')
     try {
-      const res = await fetch(`/api/whitelist/status?wallet=${address}`, {
-        cache: 'no-store',
-        headers: { 'Cache-Control': 'no-cache' },
-      })
+      const res = await fetch(`/api/whitelist/status?wallet=${address}`)
       if (res.ok) {
         const data = await res.json()
         setStatus(data)

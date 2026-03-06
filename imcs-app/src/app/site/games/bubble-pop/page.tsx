@@ -189,7 +189,7 @@ export default function BubblePopGame() {
     if (gameState === 'finished' && address) {
       saveScore()
     }
-  }, [gameState, address, score])
+  }, [gameState, address]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Ready screen
   if (gameState === 'ready') {
