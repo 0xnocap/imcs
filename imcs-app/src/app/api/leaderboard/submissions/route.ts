@@ -1,11 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
+import { rateLimit, getRequestIP } from '@/lib/rate-limit'
 
 export const dynamic = 'force-dynamic'
-export const revalidate = 0
 
 export async function GET(request: NextRequest) {
   try {
+    // Rate limit: 10 requests per minute per IP (this is the heaviest endpoint)
+    const ip = getRequestIP(request)
+    const rl = rateLimit(`leaderboard:${ip}`, { limit: 10, windowMs: 60_000 })
+    if (!rl.success) {
+      return NextResponse.json(
+        { error: 'slow down dummie' },
+        { status: 429, headers: { 'Retry-After': String(rl.retryAfter) } }
+      )
+    }
     const searchParams = request.nextUrl.searchParams
     const limit = parseInt(searchParams.get('limit') || '100')
 
@@ -172,8 +181,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(limited, {
       headers: {
-        'Cache-Control': 'no-store, no-cache, must-revalidate',
-        'Pragma': 'no-cache'
+        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',
       }
     })
   } catch (error) {

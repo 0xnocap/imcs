@@ -44,26 +44,17 @@ export default function ProfilePage() {
     setLoading(true)
 
     try {
-      // Fetch profile, tasks, and leaderboard in parallel
-      const [profileRes, tasksRes, lbRes] = await Promise.all([
-        fetch(`/api/profile/${address}`, {
-          cache: 'no-store',
-          headers: { 'Cache-Control': 'no-cache' }
-        }),
-        fetch(`/api/tasks/${address}`, {
-          cache: 'no-store',
-          headers: { 'Cache-Control': 'no-cache' }
-        }),
-        fetch(`/api/leaderboard/submissions?limit=1000`, {
-          cache: 'no-store',
-          headers: { 'Cache-Control': 'no-cache' }
-        })
+      // Fetch profile and tasks in parallel
+      const [profileRes, tasksRes] = await Promise.all([
+        fetch(`/api/profile/${address}`),
+        fetch(`/api/tasks/${address}`)
       ])
 
       // Process profile - this now includes correct total_points from API
       if (profileRes.ok) {
         const profileData = await profileRes.json()
         setProfile(profileData)
+        setRank(profileData.rank || null)
         setError(null)
       } else {
         setError('ur wallet not savant yet. submit form first, nerd')
@@ -74,15 +65,6 @@ export default function ProfilePage() {
       if (tasksRes.ok) {
         const tasksData = await tasksRes.json()
         setCompletedTasks(tasksData.tasks || [])
-      }
-
-      // Process leaderboard for rank
-      if (lbRes.ok) {
-        const lbData = await lbRes.json()
-        const userRank = lbData.findIndex(
-          (s: any) => s.wallet_address.toLowerCase() === address.toLowerCase()
-        ) + 1
-        setRank(userRank > 0 ? userRank : null)
       }
     } catch (e) {
       console.error('Failed to fetch profile data:', e)
@@ -101,17 +83,6 @@ export default function ProfilePage() {
     }
   }, [isConnected, address, fetchAllData])
 
-  // Refetch when page gains focus (user navigates back)
-  useEffect(() => {
-    const handleFocus = () => {
-      if (isConnected && address) {
-        fetchAllData()
-      }
-    }
-
-    window.addEventListener('focus', handleFocus)
-    return () => window.removeEventListener('focus', handleFocus)
-  }, [isConnected, address, fetchAllData])
 
   // Total points comes directly from the API - it calculates correctly
   const totalPoints = profile?.total_points || 0

@@ -1,14 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
+import { rateLimit, getRequestIP } from '@/lib/rate-limit'
 
 export const dynamic = 'force-dynamic'
-export const revalidate = 0
 
 export async function GET(
   request: NextRequest,
   { params }: { params: { wallet: string } }
 ) {
   try {
+    // Rate limit: 30 requests per minute per IP
+    const ip = getRequestIP(request)
+    const rl = rateLimit(`tasks:${ip}`, { limit: 30, windowMs: 60_000 })
+    if (!rl.success) {
+      return NextResponse.json(
+        { error: 'slow down dummie' },
+        { status: 429, headers: { 'Retry-After': String(rl.retryAfter) } }
+      )
+    }
+
     const wallet = params.wallet.toLowerCase()
 
     // Query task_completions table (including completion_count)

@@ -1,14 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
+import { rateLimit, getRequestIP } from '@/lib/rate-limit'
 
 export const dynamic = 'force-dynamic'
-export const revalidate = 0
 
 export async function GET(
   request: NextRequest,
   { params }: { params: { wallet: string } }
 ) {
   try {
+    // Rate limit: 30 requests per minute per IP
+    const ip = getRequestIP(request)
+    const rl = rateLimit(`profile:${ip}`, { limit: 30, windowMs: 60_000 })
+    if (!rl.success) {
+      return NextResponse.json(
+        { error: 'slow down dummie' },
+        { status: 429, headers: { 'Retry-After': String(rl.retryAfter) } }
+      )
+    }
+
     const wallet = params.wallet.toLowerCase()
 
     // 1. Fetch task completions
@@ -116,8 +126,7 @@ export async function GET(
       whitelist_method: whitelistMethod,
     }, {
       headers: {
-        'Cache-Control': 'no-store, no-cache, must-revalidate',
-        'Pragma': 'no-cache'
+        'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60',
       }
     })
   } catch (error) {

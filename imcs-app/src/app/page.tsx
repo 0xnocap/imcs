@@ -20,14 +20,13 @@ function SplashScreenContent() {
     }
   }, [searchParams])
 
-  // Preload WL count while user is on splash screen
+  // Preload WL count while user is on splash screen (lightweight endpoint)
   useEffect(() => {
-    fetch('/api/leaderboard/submissions?limit=1000', { cache: 'no-store' })
+    fetch('/api/stats/wl-count')
       .then(r => r.json())
       .then(data => {
-        const count = Array.isArray(data) ? data.filter((u: any) => u.whitelist_status === 'approved').length : 0
+        const count = data.count || 0
         setPreloadedCount(count)
-        // Cache in sessionStorage so home page gets it instantly
         sessionStorage.setItem('wlCount', String(count))
       })
       .catch(() => {})
