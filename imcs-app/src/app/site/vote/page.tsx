@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import VotingCard from '@/components/VotingCard'
 import { getVoteResponse } from '@/lib/utils'
 import { useWallet } from '@/hooks/useWallet'
+import ConnectWallet from '@/components/ConnectWallet'
 
 type Submission = {
   id: string
@@ -15,7 +16,7 @@ type Submission = {
 }
 
 export default function VotePage() {
-  const { address: walletAddress } = useWallet()
+  const { address: walletAddress, isConnected } = useWallet()
   const [currentSubmission, setCurrentSubmission] = useState<Submission | null>(null)
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
@@ -27,10 +28,10 @@ export default function VotePage() {
   const [showMilestone, setShowMilestone] = useState(false)
   const [milestonePoints, setMilestonePoints] = useState(0)
   const [animationInterval] = useState(() => 5 + Math.floor(Math.random() * 3))
-  const cachedIp = useRef<string | null>(null)
   const isLoadingRef = useRef(false)
   const lastMilestoneRef = useRef(0) // Track last milestone achieved
 
+  // Hydrate localStorage-cached voted IDs on mount (cheap, client-only)
   useEffect(() => {
     const savedVotedIds = localStorage.getItem('votedSubmissions')
     if (savedVotedIds) {
@@ -41,14 +42,20 @@ export default function VotePage() {
         console.error('Failed to parse voted IDs:', e)
       }
     }
-
-    fetch('https://api.ipify.org?format=json')
-      .then(res => res.json())
-      .then(data => { cachedIp.current = data.ip })
-      .catch(() => { cachedIp.current = 'unknown' })
-
-    loadNextSubmission()
   }, [])
+
+  // Load first submission once wallet is connected.
+  // Keyed on walletAddress so switching wallets reloads with correct filter.
+  useEffect(() => {
+    if (!walletAddress) {
+      setLoading(false)
+      return
+    }
+    loadNextSubmission()
+    // loadNextSubmission reads votedIds/walletAddress from closure; we only
+    // want this effect to fire on wallet connect, not on every vote.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [walletAddress])
 
   // Load existing vote count from task completions
   useEffect(() => {
@@ -75,6 +82,7 @@ export default function VotePage() {
   }, [votedIds])
 
   const loadNextSubmission = async (additionalExcludeIds?: Set<string>) => {
+    if (!walletAddress) return
     // Prevent concurrent loads
     if (isLoadingRef.current) return
     isLoadingRef.current = true
@@ -85,19 +93,15 @@ export default function VotePage() {
     try {
       // Combine votedIds with any additional excludes
       const allExcludeIds = new Set([...votedIds, ...(additionalExcludeIds || [])])
-      
-      // Build URL with exclude IDs and voter identifier
+
+      // Build URL with exclude IDs and wallet as voter identifier
       const params = new URLSearchParams()
       if (allExcludeIds.size > 0) {
         params.set('exclude', Array.from(allExcludeIds).join(','))
       }
-      // Pass voter identifier so API can also filter by database votes
-      const voter = walletAddress || cachedIp.current
-      if (voter) {
-        params.set('voter', voter)
-      }
-      
-      const url = `/api/vote/random${params.toString() ? '?' + params.toString() : ''}`
+      params.set('voter', walletAddress)
+
+      const url = `/api/vote/random?${params.toString()}`
       const response = await fetch(url, { cache: 'no-store' })
 
       if (!response.ok) {
@@ -126,7 +130,7 @@ export default function VotePage() {
   }
 
   const handleVote = async (voteType: 'upvote' | 'downvote') => {
-    if (!currentSubmission) return
+    if (!currentSubmission || !walletAddress) return
 
     const submissionId = currentSubmission.id
 
@@ -138,16 +142,15 @@ export default function VotePage() {
     const newVoteCount = voteCount + 1
     setVoteCount(newVoteCount)
 
-    // Fire vote API in background
-    const ip = cachedIp.current
+    // Fire vote API in background (wallet-authenticated only)
     fetch('/api/vote', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         submission_id: submissionId,
         vote_type: voteType,
-        voter_identifier: walletAddress || ip || undefined,
-        voter_wallet: walletAddress || undefined
+        voter_identifier: walletAddress,
+        voter_wallet: walletAddress
       })
     })
       .then(res => {
@@ -162,13 +165,13 @@ export default function VotePage() {
     // Check for 10-vote milestone (every 10 votes in this session)
     const totalVotes = totalVoteCount + newVoteCount
     const currentMilestone = Math.floor(totalVotes / 10)
-    
-    if (currentMilestone > lastMilestoneRef.current && walletAddress) {
+
+    if (currentMilestone > lastMilestoneRef.current) {
       // New milestone reached! Award 100 points
       lastMilestoneRef.current = currentMilestone
       setMilestonePoints(100)
       setShowMilestone(true)
-      
+
       // Save to task completions (adds 100 points per milestone)
       try {
         await fetch('/api/tasks/complete', {
@@ -210,6 +213,24 @@ export default function VotePage() {
       setVotedIds(newVotedIds)
       loadNextSubmission(newVotedIds)
     }
+  }
+
+  // Wallet connection gate
+  if (!isConnected) {
+    return (
+      <div className="page active">
+        <div className="form-container" style={{ textAlign: 'center', padding: '60px 20px' }}>
+          <h2 className="form-title">aprove r denie</h2>
+          <p style={{ fontSize: '20px', marginBottom: '15px' }}>
+            connect ur wallut 2 vote on savant submishuns
+          </p>
+          <p style={{ fontSize: '14px', marginBottom: '30px', opacity: 0.8 }}>
+            every 10 votes = 100 points toward savant whitelist
+          </p>
+          <ConnectWallet label="connect wallut" />
+        </div>
+      </div>
+    )
   }
 
   if (loading && !currentSubmission) {
@@ -284,18 +305,6 @@ export default function VotePage() {
         }}>
           help us find da best savants
         </p>
-        {!walletAddress && (
-          <p style={{
-            fontSize: '14px',
-            color: '#fff',
-            background: '#ff6b9d',
-            padding: '6px 12px',
-            border: '2px solid #000',
-            marginTop: '8px',
-          }}>
-            connect wallet 2 earn points 4 voting!
-          </p>
-        )}
       </div>
 
       {/* Milestone celebration overlay */}
