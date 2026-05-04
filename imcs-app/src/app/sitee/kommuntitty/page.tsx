@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { useAccount, useSignMessage } from 'wagmi'
+import { useSignMessage } from 'wagmi'
+import { useWallet } from '@/hooks/useWallet'
 import ConnectWallet from '@/components/ConnectWallet'
 
 type CollectionStatus = {
@@ -81,7 +82,7 @@ function buildSignMessage(collection: string, mintWallet: string, timestamp: num
 }
 
 export default function CommunityPage() {
-  const { address, isConnected } = useAccount()
+  const { address, isConnected } = useWallet()
   const { signMessageAsync } = useSignMessage()
 
   const [collections, setCollections] = useState<CollectionStatus[]>([])
