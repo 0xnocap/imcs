@@ -99,7 +99,7 @@ export default function CommunityPage() {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    fetch('/api/community/status')
+    fetch('/api/community/status', { cache: 'no-store' })
       .then(r => r.json())
       .then(data => {
         setCollections(data.collections || [])
