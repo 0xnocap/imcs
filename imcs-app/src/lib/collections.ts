@@ -47,7 +47,7 @@ export const COLLECTIONS: CollectionConfig[] = [
   {
     slug: 'regenerates',
     name: 'Regenerates',
-    displayName: 'regenerayts',
+    displayName: 'regenerates',
     contractAddresses: ['0x26c42724eba22f2d1a2ac5d35b0344bf2f3f8188'],
     chainId: 8453,
     cap: 75,
