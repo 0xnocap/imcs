@@ -6,19 +6,20 @@ export const dynamic = 'force-dynamic'
 
 export async function GET() {
   try {
-    const results = await Promise.all(
-      COLLECTIONS.map(c =>
-        supabase
-          .from('community_claims')
-          .select('*', { count: 'exact', head: true })
-          .eq('collection_slug', c.slug)
-          .then(({ count }) => ({ slug: c.slug, count: count ?? 0 }))
-      )
-    )
+    const { data: allClaims, error: dbError } = await supabase
+      .from('community_claims')
+      .select('collection_slug')
+      .limit(10000)
+
+    if (dbError) {
+      console.error('community_claims query error:', dbError)
+    }
 
     const claimCounts: Record<string, number> = {}
-    for (const r of results) {
-      claimCounts[r.slug] = r.count
+    if (allClaims) {
+      for (const row of allClaims) {
+        claimCounts[row.collection_slug] = (claimCounts[row.collection_slug] || 0) + 1
+      }
     }
 
     const collections = COLLECTIONS.map(c => ({
