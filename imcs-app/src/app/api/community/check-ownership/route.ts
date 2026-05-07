@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createPublicClient, http, getAddress, type Chain } from 'viem'
-import { mainnet, base } from 'viem/chains'
+import { mainnet, base, berachain } from 'viem/chains'
 import { getCollectionBySlug } from '@/lib/collections'
 
 export const dynamic = 'force-dynamic'
@@ -16,11 +16,13 @@ const RPC_URLS: Record<number, string> = {
   8453: ALCHEMY_KEY
     ? `https://base-mainnet.g.alchemy.com/v2/${ALCHEMY_KEY}`
     : 'https://mainnet.base.org',
+  80094: 'https://rpc.berachain.com',
 }
 
 const CHAINS_BY_ID: Record<number, Chain> = {
   1: mainnet,
   8453: base,
+  80094: berachain,
 }
 
 const ERC721_BALANCE_OF_ABI = [

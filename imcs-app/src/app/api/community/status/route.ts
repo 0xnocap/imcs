@@ -22,16 +22,19 @@ export async function GET() {
       }
     }
 
-    const collections = COLLECTIONS.map(c => ({
-      slug: c.slug,
-      name: c.name,
-      displayName: c.displayName,
-      chainId: c.chainId,
-      cap: c.cap,
-      claimed: claimCounts[c.slug] || 0,
-      spotsRemaining: c.cap - (claimCounts[c.slug] || 0),
-      logo: c.logo || null,
-    }))
+    const collections = COLLECTIONS.map(c => {
+      const claimed = claimCounts[c.slug] || 0
+      return {
+        slug: c.slug,
+        name: c.name,
+        displayName: c.displayName,
+        chainId: c.chainId,
+        cap: c.cap,
+        claimed: c.closed ? c.cap : claimed,
+        spotsRemaining: c.closed ? 0 : c.cap - claimed,
+        logo: c.logo || null,
+      }
+    })
 
     return NextResponse.json(
       { collections },
