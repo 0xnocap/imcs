@@ -240,7 +240,7 @@ export async function POST(request: NextRequest) {
     if (existing) {
       await supabase
         .from('whitelist')
-        .update({ community: true, fcfs: true, source: 'community' })
+        .update({ gtd: true, community: true, fcfs: true, source: 'community' })
         .eq('wallet_address', normalizedMint)
     } else {
       await supabase
@@ -251,7 +251,7 @@ export async function POST(request: NextRequest) {
           method: 'community_claim',
           community: true,
           fcfs: true,
-          gtd: false,
+          gtd: true,
           source: 'community',
           notes: `claimed via ${collection.name} (holder: ${normalizedHolder})`,
         })
